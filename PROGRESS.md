@@ -3,7 +3,8 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `ebf2b84` — Step 11: navigation shell (sidebar + top bar)
+**Last commit:** `038eeb6` — Step 11: navigation shell (sidebar + top bar)
+**Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
 ---
@@ -98,7 +99,12 @@ Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_c
   - [`src/app/properties/[id]/page.tsx`](src/app/properties/[id]/page.tsx) — replaced in-page breadcrumb nav with a `<h1>` showing the property display name
   - Smoke-tested: Dashboard shows "Dashboard" crumb; bill detail shows "Dashboard / Bills / Detail" with all levels clickable; page heading shows full PDF filename
 
-- Vercel deployment + end-to-end verification
+- [x] **Step 12** — Vercel deployment
+  - Project linked: `jayache123/municipal-bills-prototype`
+  - 6 production env vars set via CLI: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`
+  - Build: TypeScript clean, all 8 routes built, 27s build time
+  - Live at: https://municipal-bills-prototype.vercel.app
+  - Smoke-tested: `/`, `/bills`, `/properties` all returning 200
 
 ---
 

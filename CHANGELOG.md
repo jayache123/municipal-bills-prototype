@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-05-12 — Step 12: Vercel deployment
+
+- Project linked to Vercel: `jayache123/municipal-bills-prototype`
+- 6 production environment variables set via `vercel env add`:
+  `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+  `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+  `ANTHROPIC_API_KEY`
+- Production deploy via `vercel --prod`: TypeScript clean, all 8 routes
+  compiled (static: `/`, `/bills`, `/properties`, `/upload`;
+  dynamic: `/bills/[id]`, `/properties/[id]`, `/api/bills/upload`),
+  27s build time in Washington D.C. (iad1)
+- Live URL: https://municipal-bills-prototype.vercel.app
+- Smoke-tested: `/`, `/bills`, `/properties` all HTTP 200
+
+---
+
 ## 2026-05-12 — Step 11: Navigation shell
 
 - `src/components/sidebar.tsx` — `'use client'` left sidebar (w-52):

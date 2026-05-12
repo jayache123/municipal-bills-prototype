@@ -1,0 +1,102 @@
+# Build Progress
+
+Where we are right now and what's next. Updated on every commit.
+
+**Last updated:** 2026-05-12
+**Last commit:** (pending) — Add documentation suite and project hygiene files
+**Branch:** `claude/optimistic-robinson-7f24d9`
+
+---
+
+## Current phase: "Wire extraction into the app"
+
+A 7-step plan to take the working CLI extraction and turn it into a real upload-to-database-to-review pipeline.
+
+### Status
+
+- [x] **Step 1** — Create Supabase Storage bucket for bills
+  - `npm run setup:storage` creates a private `bills` bucket (10MB limit, PDF-only)
+- [x] **Step 2** — Storage upload helper + CLI test
+  - [`src/lib/supabase/storage.ts`](src/lib/supabase/storage.ts) — `uploadBillPdf()`, `getBillPdfSignedUrl()`
+  - `npm run test:storage -- <pdf>` uploads a file and prints a signed URL
+- [x] **Step 3** — Property/account matching logic (pure function)
+  - [`src/lib/billing/match.ts`](src/lib/billing/match.ts) — `matchExtractedBill()`
+  - `npm run test:matching -- tmp/extraction-*.json` resolves matches without writing
+  - Verified against 19 Atholl (single property), Vredefort (single unit + complex-name warning), Rockaways (multi-unit)
+- [ ] **Step 4** — DB insert pipeline (bill + line items + properties)
+  - Function `saveExtractedBill()` to create missing entities and insert bill + lines + warnings + audit
+  - CLI test `npm run test:save -- tmp/extraction-*.json`
+  - Insert with `status = 'pending_review'`; real status routing in Step 5
+- [ ] **Step 5** — Hard checks → bill_field_errors → status routing
+  - Promote the 5 hard checks in `scripts/test-extraction.ts` into a reusable module
+  - Insert failures into `bill_field_errors`
+  - Set bill status to `approved` / `pending_review` / `hard_rejected`
+- [ ] **Step 6** — HTTP upload API route + curl test
+  - `POST /api/bills/upload` accepting multipart, runs the full pipeline
+- [ ] **Step 7** — Drag-drop upload UI + status feedback
+  - `/upload` page with React drag-drop, shows processing status
+
+---
+
+## Earlier phases (already complete)
+
+- [x] Project scaffolded (Next.js + TypeScript + Tailwind)
+- [x] Supabase schema deployed (8 tables, 6 enums, RLS, indexes, 11 settings, seed data)
+- [x] `.env.local` populated; connection test passing
+- [x] CLI extraction working end-to-end on 3 real bills, all 5 hard checks passing
+- [x] README + DECISIONS + PROGRESS + supporting docs (this commit)
+- [x] Project hygiene: `.nvmrc`, `.editorconfig`, `npm run check` (lint + typecheck + connections), `turbopack.root` set in `next.config.ts`
+
+---
+
+## What's next after Step 7
+
+Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_code_prompt.md) frontend pages, in priority order:
+
+- Bills list and bill detail (review panel) — the editable review screen
+- Properties list and detail pages
+- Dashboard home with three summary sections (billing health, usage overview, processing status)
+- Settings, sync, audit log pages
+- Vercel deployment + end-to-end verification
+
+---
+
+## Test bill inventory
+
+Bills we've extracted and validated. Use this as the regression set when changing the extraction prompt.
+
+| File (in `example_rates/`) | Account | What it exercises |
+|---|---|---|
+| `19 Atholl Road Rates - February 2026.pdf` | 239130147 | Single property, full utility suite (rates + elec estimated + water + refuse + sewerage + improvement district + sundries) |
+| `3B Vredefort Unit 24 - August 2025 Rates Account.pdf` | 235055327 | Single unit, stepped electricity tariffs (4 tier lines), reversal of estimated consumption, rate rebate |
+| `Rockaways Rates May 2026.PDF` | 219850405 | Multi-unit (3 units on Erf 1705), sundries with rebates, no meter readings |
+| `Rockaways Rates January 2026.PDF` | 219850405 | (Available; not yet test-extracted) Same account as above, different month — useful for time-series testing later |
+| `Twin Towers - September 2024.PDF` | 228414930 | (Available; not yet test-extracted) Multi-unit rates-only bill |
+
+Raw extraction JSONs live in `tmp/` (gitignored) after running `npm run test:extraction`.
+
+---
+
+## Open questions / things to revisit
+
+- After Step 7: add scanned-PDF testing (manufacture one via phone-photo, run extraction)
+- After ~10 test bills: build a regression runner that runs extraction on every test PDF and reports pass/fail
+- After production demo: rotate credentials that were shared in chat during setup
+- Eventually: add user authentication and replace empty RLS policies with real ones
+
+See [DECISIONS.md](DECISIONS.md) "Deferred" section for the full list.
+
+---
+
+## How to resume work from scratch
+
+If picking this back up in a new session or new tool:
+
+1. Read [`CLAUDE.md`](CLAUDE.md) — project rules and working style
+2. Read [`README.md`](README.md) — setup instructions
+3. Read [`DECISIONS.md`](DECISIONS.md) — the *why* of every choice
+4. Read this file ([`PROGRESS.md`](PROGRESS.md)) — the *where* of the build
+5. Read [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — known gotchas
+6. Skim [`CHANGELOG.md`](CHANGELOG.md) — recent commits
+7. Run `npm run test:connections` to confirm credentials and DB are still reachable
+8. Resume at the first unchecked Step above

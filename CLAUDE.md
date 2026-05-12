@@ -1,5 +1,31 @@
 # Municipal Bills Prototype — Project Context
 
+## Required reading at session start
+
+Read these files first, in this order, before touching anything:
+
+1. This file (`CLAUDE.md`) — project rules + working style
+2. [`README.md`](README.md) — tech stack, setup, configuration
+3. [`DECISIONS.md`](DECISIONS.md) — why every choice was made
+4. [`PROGRESS.md`](PROGRESS.md) — current build state, what's next
+5. [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — known gotchas + fixes
+6. [`ARCHITECTURE.md`](ARCHITECTURE.md) — system shape
+7. [`CHANGELOG.md`](CHANGELOG.md) — recent history
+
+Then skim recent `git log` (last 3–5 commits). Then ask the developer what to do next.
+
+## Documentation maintenance (mandatory on every commit)
+
+Before any commit:
+
+- **Always update** [`PROGRESS.md`](PROGRESS.md) — mark completed steps, update "Last commit", note new in-progress items
+- **Always update** [`CHANGELOG.md`](CHANGELOG.md) — add a bullet to the current session entry
+- **Update if applicable** [`DECISIONS.md`](DECISIONS.md) — when a decision was made or revised
+- **Update if applicable** [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) — when a new gotcha was discovered
+- **Update if applicable** [`ARCHITECTURE.md`](ARCHITECTURE.md) — when system structure changed
+
+These updates are part of the commit itself — same commit, not a follow-up. The goal: at any commit, all docs reflect reality.
+
 ## What this project is
 
 A working prototype of a system that automates the processing of municipal property bills for a property management company. The client currently receives thousands of municipal PDF bills each month, prints them, and manually captures each line item. There is no current system for flagging unexpected usage spikes, missing bills, or extraction errors.

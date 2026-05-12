@@ -333,7 +333,7 @@ export default function UploadPage() {
             Upload a Municipal Bill
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
-            PDF only · max 10 MB · City of Cape Town
+            PDF only · max 10 MB
           </p>
         </div>
 

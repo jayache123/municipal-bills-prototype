@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `(pending)` — Step 8: bills list + bill detail pages
+**Last commit:** `4427fda` — Step 8: bills list + bill detail pages
 **Branch:** `main`
 
 ---

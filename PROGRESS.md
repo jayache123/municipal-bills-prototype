@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `(pending)` — Step 11: navigation shell (sidebar + top bar)
+**Last commit:** `ebf2b84` — Step 11: navigation shell (sidebar + top bar)
 **Branch:** `main`
 
 ---

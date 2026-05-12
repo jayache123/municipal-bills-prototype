@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `9e2b30a` — Add documentation suite and project hygiene files
+**Last commit:** `837786d` — Step 4: DB insert pipeline (bills, line items, properties, audit)
 **Branch:** `claude/optimistic-robinson-7f24d9`
 
 ---
@@ -29,10 +29,11 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
   - [`scripts/cleanup-test-data.ts`](scripts/cleanup-test-data.ts) — wipes bills/line items/errors/audit; preserves seed data
   - Verified against all 3 test bills: 3 bills, 59 line items, 1 warning persisted with full granular detail
   - Multi-unit linkage confirmed: Rockaways line items correctly map to 3 different unit IDs; sundries correctly carry null `property_id`
-- [ ] **Step 5** — Hard checks → bill_field_errors → status routing
-  - Promote the 5 hard checks in `scripts/test-extraction.ts` into a reusable module
-  - Insert failures into `bill_field_errors`
-  - Set bill status to `approved` / `pending_review` / `hard_rejected`
+- [x] **Step 5** — Hard checks → bill_field_errors → status routing
+  - [`src/lib/billing/validate.ts`](src/lib/billing/validate.ts) — `validateBill()` runs 9 checks (5 critical + 1 critical-per-line + 3 info), persists failures as `bill_field_errors`, computes final status
+  - Status routing considers BOTH check failures AND pre-existing errors (match warnings), so a high-confidence bill with a property warning is correctly routed to pending_review under strict mode
+  - Verified routing on all 3 test bills: 19 Atholl (conf 92, 0 issues) → approved; Rockaways (conf 95, 0 issues) → approved; Vredefort (conf 88, 1 warning + 4 info) → pending_review
+  - Deferred: history-based checks (variance vs baseline, consecutive estimates, materially-large reconciliations). Build after we have ≥3 bills per property.
 - [ ] **Step 6** — HTTP upload API route + curl test
   - `POST /api/bills/upload` accepting multipart, runs the full pipeline
 - [ ] **Step 7** — Drag-drop upload UI + status feedback

@@ -8,6 +8,34 @@ For full per-commit detail, see `git log`.
 
 ---
 
+## 2026-05-12 — Step 5: Hard checks → bill_field_errors → status routing
+
+- `src/lib/billing/validate.ts` — `validateBill()` runs 9 checks against an
+  extracted bill, persists failures into `bill_field_errors`, and computes
+  the bill's final status:
+    * 5 critical bill-level checks: line item sum, VAT self-consistency,
+      balance arithmetic, period ordering, due-date ordering
+    * 1 critical per-line check: meter reading direction
+    * 3 info checks: low field confidence, low line confidence, scanned source
+- Status routing combines NEW check failures with EXISTING bill_field_errors
+  (e.g. property-match warnings from save). A high-confidence bill with a
+  property warning is correctly routed to pending_review under strict mode.
+- `scripts/test-save.ts` now chains validate after save, prints summary +
+  failed checks for visibility.
+- Bug caught and fixed during testing: initial `decideStatus` only looked at
+  the just-run checks; without considering existing match warnings, a
+  high-confidence bill could have been wrongly auto-approved.
+
+Verified routing on all 3 test bills:
+- 19 Atholl (conf 92, 0 issues) → approved
+- Rockaways May 2026 (conf 95, 0 issues) → approved
+- 3B Vredefort (conf 88, 1 warning + 4 info) → pending_review
+
+Deferred history-based warnings (variance, consecutive estimates,
+materially-large reconciliations) until we have ≥3 bills per property.
+
+---
+
 ## 2026-05-12 — Step 4: DB insert pipeline
 
 - `src/lib/billing/save.ts` — `saveExtractedBill()` persists an extraction:

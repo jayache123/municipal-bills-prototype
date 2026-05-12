@@ -7,6 +7,7 @@ import { getSupabaseServiceClient } from "../src/lib/supabase/server";
 import { uploadBillPdf } from "../src/lib/supabase/storage";
 import { matchExtractedBill } from "../src/lib/billing/match";
 import { saveExtractedBill } from "../src/lib/billing/save";
+import { validateBill } from "../src/lib/billing/validate";
 import type { ExtractionResult } from "../src/lib/anthropic/extraction-schema";
 
 const args = process.argv.slice(2);
@@ -97,7 +98,30 @@ async function main(): Promise<void> {
   console.log(`   billing acct created: ${result.entities_created.billing_account}`);
   console.log(`   properties created:   ${result.entities_created.properties}`);
   console.log(`   line items inserted:  ${result.line_items_inserted}`);
-  console.log(`   warnings inserted:    ${result.warnings_inserted}`);
+  console.log(`   match warnings:       ${result.warnings_inserted}`);
+
+  console.log(`\n→ Running hard checks...`);
+  const validation = await validateBill(supabase, {
+    bill_id: result.bill_id,
+    bill: extraction.bill,
+    source_type: extraction.source_type,
+  });
+
+  console.log(`✓ Validation complete.`);
+  console.log(`   critical failures:  ${validation.failed_critical}`);
+  console.log(`   warning failures:   ${validation.failed_warning}`);
+  console.log(`   info failures:      ${validation.failed_info}`);
+  console.log(`   errors persisted:   ${validation.errors_inserted}`);
+  console.log(`   final status:       ${validation.status.toUpperCase()}`);
+
+  const failed = validation.results.filter((r) => !r.passed);
+  if (failed.length > 0) {
+    console.log(`\n--- Failed checks ---`);
+    for (const r of failed) {
+      const lineRef = r.line_order !== undefined ? ` [line ${r.line_order}]` : "";
+      console.log(`  [${r.severity.padEnd(8)}] ${r.rule_name}${lineRef}: ${r.message}`);
+    }
+  }
 }
 
 main().catch((err) => {

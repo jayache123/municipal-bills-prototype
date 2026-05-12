@@ -349,6 +349,39 @@ A chronological log of decisions made on this prototype. Each entry captures the
 
 ---
 
+### Status routing considers pre-existing errors, not just current checks
+**Date:** 2026-05-12
+**Status:** Active
+
+**Choice:** `validateBill()`'s status decision queries `bill_field_errors` to learn about errors already attached to the bill (e.g. property-match warnings inserted by `saveExtractedBill`). It treats the union of "errors just added by validation" + "existing unresolved errors" when deciding `approved` vs `pending_review`.
+
+**Why we made this explicit:** First version of `decideStatus` only looked at the check results just produced. Validation runs no warning-severity checks today (those are history-based, deferred), so the existing match warnings would have been ignored. A high-confidence bill with an unresolved property warning would have been wrongly auto-approved — exactly the false-negative the "strict mode" decision is meant to prevent.
+
+**Where:** [`src/lib/billing/validate.ts`](src/lib/billing/validate.ts) → `loadExistingErrors()` + `decideStatus()`.
+
+**Revisit when:** When we add error resolution flow (a reviewer marks an error as "resolved=true" through the UI). The current logic correctly ignores resolved errors via the `resolved` flag on each row.
+
+---
+
+### Validate runs AFTER save (separate step, not inlined)
+**Date:** 2026-05-12
+**Status:** Active
+
+**Choice:** `validateBill()` is a separate function called immediately after `saveExtractedBill()`. It re-reads the persisted line items to map `line_order → line_item_id`, runs checks, persists failures, updates `bills.status`.
+
+**Alternatives considered:** Run validation inline within save (single function).
+
+**Why:** Cleaner separation of concerns. Save is "persist the extracted data" — pure ingestion. Validate is "is the persisted data internally consistent?" — analysis. Splitting them means:
+- We can re-run validation on an already-saved bill (e.g. if checks or thresholds change) without re-extracting or re-saving.
+- Save can return a meaningful `bill_id` even if validation later finds issues — the bill is in the DB either way.
+- Each function fits comfortably in a single mental model.
+
+**Where:** [`src/lib/billing/validate.ts`](src/lib/billing/validate.ts), called from [`scripts/test-save.ts`](scripts/test-save.ts).
+
+**Revisit when:** If we ever need atomic save+validate as a single unit (e.g. status must be set in the same transaction).
+
+---
+
 ### Warning dedupe by message text on save
 **Date:** 2026-05-12
 **Status:** Active

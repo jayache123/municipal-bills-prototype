@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-05-12 — Step 10: Dashboard home page
+
+- `src/app/page.tsx` — replaces the default Next.js scaffold with a real
+  dashboard at `/`; server component with four parallel Supabase fetches:
+    * All bills (status + amount) → compute aggregate stats in JS
+    * `pending_review` bills with property + account joins → review queue
+    * Latest 5 bills → recent activity
+    * All property IDs → count
+- **Summary cards** (top row of 4):
+    * Needs Review — count of `pending_review` bills; amber when >0
+    * Amount Pending — sum of `total_amount_due` for pending bills; amber when >0
+    * Amount Approved — sum for `approved` bills; green when >0
+    * Properties — total count; turns red if any `hard_rejected` bills exist
+- **Review Queue** — one row per `pending_review` bill showing status badge,
+  property address + suburb + customer, amount, period, "Review →" link to
+  `/bills/:id`; shows "✓ All bills reviewed" when the queue is empty
+- **Recent Bills** — last 5 bills of any status; same row layout with "View →"
+  links; "View all →" to `/bills`
+- **Quick links** — All Bills, Properties, Upload Bill
+
+---
+
 ## 2026-05-12 — Step 9: Properties list + detail pages
 
 - `src/app/properties/page.tsx` — server-rendered properties list at `/properties`:

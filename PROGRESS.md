@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `9a9b654` — Step 9: properties list + detail pages
+**Last commit:** `(pending)` — Step 10: dashboard home page
 **Branch:** `main`
 
 ---
@@ -82,7 +82,14 @@ Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_c
   - [`src/app/properties/[id]/page.tsx`](src/app/properties/[id]/page.tsx) — server component at `/properties/:id`; parallel fetches for property + bills; Property Details info grid (12 fields); Bills history table (same style as `/bills`, filtered to `primary_property_id`); empty state when no bills exist
   - Smoke-tested: 269 Beach Road (1 bill shown); 225 Main Road Unit 34 (0 bills, empty state); breadcrumb, status bar, all fields correct
 
-- Dashboard home with three summary sections (billing health, usage overview, processing status)
+- [x] **Step 10** — Dashboard home page
+  - [`src/app/page.tsx`](src/app/page.tsx) — replaces the Next.js scaffold; server component at `/`
+  - Four summary stat cards: Needs Review (count + amber highlight when >0), Amount Pending (sum of pending_review bills, amber), Amount Approved (sum of approved bills, green), Properties (count + red if any rejected)
+  - **Review Queue** section: lists all `pending_review` bills with property, period, amount, "Review →" link; shows "✓ All bills reviewed" when empty
+  - **Recent Bills** section: last 5 bills of any status; "View all →" link to `/bills`
+  - Quick links bar: All Bills, Properties, Upload Bill
+  - Smoke-tested: 1 pending review (R 11 147,16), R 43 554,38 approved, 8 properties, 5 recent bills showing correctly
+
 - Settings, sync, audit log pages
 - Vercel deployment + end-to-end verification
 

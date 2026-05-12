@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-05-12 — Step 8: Bills list + bill detail pages
+
+- `src/app/bills/page.tsx` — server-rendered bills list at `/bills`:
+    * Table columns: Status, Property, Account, Period, Amount Due, Due Date, View →
+    * `StatusBadge` component with colour config for 10 statuses (approved,
+      pending_review, hard_rejected, received, expected, queried, reviewed,
+      paid, overdue, not_applicable)
+    * Dates parsed as `YYYY-MM-DD` local time (no UTC offset shift)
+    * Empty state with Upload Bill CTA; "+ Upload Bill" header link
+- `src/app/bills/[id]/page.tsx` — server-rendered bill detail at `/bills/:id`:
+    * Parallel Supabase fetches: bill + billing_account + municipality + property,
+      line items ordered by `line_order`, unresolved `bill_field_errors`
+    * Four sections in `SectionCard` wrappers:
+        1. **Status bar** — status badge, "Processed {date}", confidence %, issue
+           count warning, and Approve Bill button (only when `pending_review`)
+        2. **Bill Information** — `InfoGrid` with municipality, account, customer,
+           property, erf/unit, invoice number, billing period, issue/due dates
+        3. **Financial Summary** — previous balance, payments received, current
+           charges, VAT, total amount due
+        4. **Issues** — collapsible list of unresolved `bill_field_errors` with
+           severity badges (critical / warning / info) and extracted values
+        5. **Line Items** — table with #, category badge, description, period,
+           usage, amount; tier labels for electricity; green tint for rebates /
+           reversals; bold for subtotals
+    * Footer shows extraction model + bill UUID
+- `src/app/bills/[id]/actions.ts` — `approveBill()` server action:
+  sets `status = "approved"`, inserts `audit_log` entry, calls `revalidatePath`
+  for both the detail and list pages
+- `src/app/bills/[id]/approve-button.tsx` — `'use client'` button using
+  `useTransition` for an "Approving…" pending state
+- Bug fix: added `formatTimestamp()` for ISO 8601 timestamps (`created_at`);
+  the existing `formatDate()` only handles `YYYY-MM-DD` strings and returned
+  "Invalid Date" for full timestamps
+
+---
+
 ## 2026-05-12 — Step 7: Drag-drop upload UI
 
 - `src/app/upload/page.tsx` — `'use client'` page at `/upload` with a

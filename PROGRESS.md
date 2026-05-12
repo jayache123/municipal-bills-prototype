@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `ac63303` — Step 7: drag-drop upload UI
+**Last commit:** `(pending)` — Step 8: bills list + bill detail pages
 **Branch:** `main`
 
 ---
@@ -63,11 +63,20 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
 
 ---
 
-## What's next after Step 7
+- [x] **Step 8** — Bills list + bill detail (review panel)
+  - [`src/app/bills/page.tsx`](src/app/bills/page.tsx) — server component at `/bills`; table with Status, Property, Account, Period, Amount Due, Due Date columns; `StatusBadge` with full status config; empty state with Upload Bill CTA
+  - [`src/app/bills/[id]/page.tsx`](src/app/bills/[id]/page.tsx) — server component at `/bills/:id`; parallel Supabase fetches (bill + line items + errors); four sections: status bar (with Approve button if `pending_review`), bill info grid, financial summary, issues list, line items table with category badges + tier labels + rebate/reversal markers
+  - [`src/app/bills/[id]/actions.ts`](src/app/bills/[id]/actions.ts) — `approveBill()` server action: sets `status = "approved"`, writes audit log, calls `revalidatePath`
+  - [`src/app/bills/[id]/approve-button.tsx`](src/app/bills/[id]/approve-button.tsx) — `'use client'` button using `useTransition` for pending state
+  - Fix: `formatTimestamp()` helper for ISO timestamps (`created_at`) — `formatDate()` only handles `YYYY-MM-DD` strings
+  - Smoke-tested: 5 bills render correctly; "Needs Review" detail shows all 15 line items, 5 issues, correct Approve button; approve action working
+
+---
+
+## What's next
 
 Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_code_prompt.md) frontend pages, in priority order:
 
-- Bills list and bill detail (review panel) — the editable review screen
 - Properties list and detail pages
 - Dashboard home with three summary sections (billing health, usage overview, processing status)
 - Settings, sync, audit log pages

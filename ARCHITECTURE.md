@@ -41,6 +41,8 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 - Calls API routes for everything (no direct DB or Anthropic access)
 - Shows status, errors, and review screens to the user
 - `/upload` — drag-drop bill upload with live progress and colour-coded result cards (Step 7)
+- `/bills` — server-rendered bills list table with status badges and summary columns (Step 8)
+- `/bills/:id` — bill detail review panel: status bar with Approve action, bill info grid, financial summary, issues list, line items table (Step 8)
 
 ### API routes (Next.js, in `src/app/api/`)
 - Accept uploads, trigger extractions, serve data to the frontend

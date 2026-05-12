@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-05-12 — Step 6: HTTP upload API route
+
+- `src/app/api/bills/upload/route.ts` — `POST /api/bills/upload` accepts
+  `multipart/form-data` with a `file` field and runs the complete pipeline:
+    * Validates the file (PDF-only, ≤ 10 MB)
+    * Uploads to Supabase Storage
+    * Calls Anthropic for extraction (`maxDuration: 300`)
+    * Hard-rejects non-bills with HTTP 422 + `rejection_reason`
+    * Returns HTTP 200 + `{ status: "already_saved" }` for duplicate `tax_invoice_number`
+    * Runs match → save → validate and returns `bill_id`, final `status`, and
+      summary counts (entities created, line items, validation failures)
+- `next.config.ts` — added `dotenv` with `override: true` at startup so the
+  Next.js dev server inherits the real `ANTHROPIC_API_KEY` from `.env.local`
+  even when Claude Code pre-sets the variable to `""` in the shell environment.
+  No-op on Vercel (`.env.local` does not exist in production).
+
+Verified with curl:
+- Rockaways Rates January 2026 (fresh bill, never saved): 200 `approved`, 22 line
+  items, 0 validation errors — full pipeline end-to-end in ~90 s
+- 19 Atholl Road April 2026 (saved on first upload): 200 `already_saved` on
+  the duplicate — idempotency guard working correctly
+
+---
+
+
+
 Human-readable summary of changes by session. Each entry covers one or more commits.
 
 Format: `## YYYY-MM-DD — <session theme>` then bullet points of what changed and why.

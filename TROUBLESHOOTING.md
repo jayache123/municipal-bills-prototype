@@ -122,6 +122,35 @@ git -C /path/to/main/worktree push origin main
 
 ---
 
+## `ANTHROPIC_API_KEY` is empty in the Next.js dev server (route returns 500)
+
+**Symptom:**
+```
+POST /api/bills/upload 500 in 207ms
+{"error":"ANTHROPIC_API_KEY is not configured on the server."}
+```
+The error fires instantly (no Anthropic call is made), even though the key is in `.env.local`.
+
+**Cause:** Same root cause as the standalone-script issue above. Claude Code sets
+`ANTHROPIC_API_KEY=""` (empty string) in the shell environment before running any
+command — including `npm run dev`. Next.js's built-in env loading (`@next/env`)
+sees that the variable is already set (even if empty) and skips the `.env.local`
+value, so the API route never sees the real key.
+
+**Fix:** `next.config.ts` now calls `dotenv` with `override: true` at startup:
+```ts
+import { config as loadEnv } from "dotenv";
+loadEnv({ path: ".env.local", override: true });
+```
+This runs before any API route, forces the real key into `process.env`, and is a
+no-op on Vercel (`.env.local` doesn't exist there).
+
+**Avoid recurrence:** The fix is already in place — no action needed. If you add
+a new server-side env var to `.env.local` and find it missing in API routes, the
+same `next.config.ts` override will pick it up automatically.
+
+---
+
 ## My existing extraction JSON in `tmp/` is out of sync with the latest prompt
 
 **Symptom:** You changed the extraction prompt and want to re-run matching, but `tmp/extraction-*.json` is from an older prompt version.

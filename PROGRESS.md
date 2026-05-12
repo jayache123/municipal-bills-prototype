@@ -3,8 +3,8 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `837786d` — Step 4: DB insert pipeline (bills, line items, properties, audit)
-**Branch:** `claude/optimistic-robinson-7f24d9`
+**Last commit:** `509e622` — Step 5: Hard checks, bill_field_errors, status routing
+**Branch:** `main`
 
 ---
 
@@ -34,8 +34,12 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
   - Status routing considers BOTH check failures AND pre-existing errors (match warnings), so a high-confidence bill with a property warning is correctly routed to pending_review under strict mode
   - Verified routing on all 3 test bills: 19 Atholl (conf 92, 0 issues) → approved; Rockaways (conf 95, 0 issues) → approved; Vredefort (conf 88, 1 warning + 4 info) → pending_review
   - Deferred: history-based checks (variance vs baseline, consecutive estimates, materially-large reconciliations). Build after we have ≥3 bills per property.
-- [ ] **Step 6** — HTTP upload API route + curl test
-  - `POST /api/bills/upload` accepting multipart, runs the full pipeline
+- [x] **Step 6** — HTTP upload API route + curl test
+  - [`src/app/api/bills/upload/route.ts`](src/app/api/bills/upload/route.ts) — `POST /api/bills/upload` accepts multipart/form-data, runs the full upload → extract → match → save → validate pipeline, returns `bill_id` + `status` + summary counts
+  - `export const maxDuration = 300` handles Anthropic's ~60–90 s extraction time
+  - Validation: PDF-only, ≤ 10 MB; graceful 422 for non-bills; 200 + `already_saved` for duplicate `tax_invoice_number`
+  - Verified with curl against Rockaways Jan 2026 (fresh bill): `status: "approved"`, 22 line items, 0 errors
+  - Also added `dotenv` override to `next.config.ts` to fix Claude Code shell env-var issue (see TROUBLESHOOTING.md)
 - [ ] **Step 7** — Drag-drop upload UI + status feedback
   - `/upload` page with React drag-drop, shows processing status
 

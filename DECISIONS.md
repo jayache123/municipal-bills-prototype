@@ -277,6 +277,26 @@ A chronological log of decisions made on this prototype. Each entry captures the
 
 ---
 
+### `dotenv` override in `next.config.ts` for dev server env vars
+**Date:** 2026-05-12
+**Status:** Active
+
+**Choice:** `next.config.ts` calls `dotenv` with `override: true` at the very top, before any Next.js processing:
+```ts
+import { config as loadEnv } from "dotenv";
+loadEnv({ path: ".env.local", override: true });
+```
+
+**Alternatives considered:** Restarting the dev server with env vars explicitly passed on the command line each time; loading dotenv inside each API route; storing all secrets in the DB settings table.
+
+**Why:** Claude Code pre-sets `ANTHROPIC_API_KEY=""` (empty string) in the shell environment before running any command. Next.js's built-in env loading (`@next/env`) treats any already-set variable — even an empty one — as final and skips the `.env.local` value. The result: API routes silently see no key. Loading dotenv with `override: true` in `next.config.ts` runs once at server startup and forces the real key in for the lifetime of the process. On Vercel, `.env.local` does not exist so `dotenv` silently no-ops; Vercel's own env injection takes over as normal.
+
+**Where:** `next.config.ts` top of file. Same `override: true` pattern documented in `TROUBLESHOOTING.md` for standalone scripts.
+
+**Revisit when:** If Next.js changes how it handles pre-set empty env vars, or if Claude Code stops pre-setting `ANTHROPIC_API_KEY`.
+
+---
+
 ### Row-Level Security on all tables, no policies
 **Date:** 2026-05-11
 **Status:** Active (for v1, no auth)

@@ -53,8 +53,8 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 
 ### `src/lib/billing/`
 - `match.ts` — pure function that decides how an extraction maps to existing DB records
-- (planned) `save.ts` — writes the extraction into Supabase (Step 4)
-- (planned) `validate.ts` — runs hard checks, persists errors, sets bill status (Step 5)
+- `save.ts` — writes the extraction into Supabase; creates missing entities, batch-inserts line items, records match warnings, writes audit log; idempotent via `tax_invoice_number`
+- `validate.ts` — runs 9 hard checks (critical + info), persists failures as `bill_field_errors`, computes final bill status (`approved` / `pending_review` / `hard_rejected`)
 
 ### `src/lib/supabase/`
 - `server.ts` — service-role client factory (singleton per process)

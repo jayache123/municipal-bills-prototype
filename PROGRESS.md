@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `509e622` — Step 5: Hard checks, bill_field_errors, status routing
+**Last commit:** `a77e733` — Step 6: HTTP upload API route + curl test
 **Branch:** `main`
 
 ---

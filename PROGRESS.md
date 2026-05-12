@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `(pending)` — Step 9: properties list + detail pages
+**Last commit:** `9a9b654` — Step 9: properties list + detail pages
 **Branch:** `main`
 
 ---

@@ -59,7 +59,7 @@ function norm(s: string | null | undefined): string {
  * (the strong municipal IDs). Fall back to normalised address when neither
  * is present.
  */
-function propertyIdentityKey(p: ExtractedProperty | DbProperty): string {
+export function propertyIdentityKey(p: ExtractedProperty | DbProperty): string {
   const hasErf = !!p.erf_number && p.erf_number.trim() !== "";
   const hasUnit = !!p.unit_number && p.unit_number.trim() !== "";
   if (hasErf || hasUnit) {

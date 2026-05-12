@@ -333,6 +333,36 @@ A chronological log of decisions made on this prototype. Each entry captures the
 
 ---
 
+### Idempotency on save via `tax_invoice_number`
+**Date:** 2026-05-12
+**Status:** Active
+
+**Choice:** `saveExtractedBill()` checks `bills.tax_invoice_number` before inserting. If a matching bill exists and `force` is false, it returns the existing `bill_id` without re-inserting. With `force: true`, it deletes the old bill (cascades to line items + errors) and re-inserts.
+
+**Alternatives considered:** Use a hash of `(account_number, billing_period_start, total_amount_due)` as the idempotency key.
+
+**Why:** `tax_invoice_number` is the municipality's own unique invoice ID — strongest deterministic match. Hashing fields is fragile to extraction variance (e.g. period dates being interpreted differently by the model on re-extraction).
+
+**Where:** [`src/lib/billing/save.ts`](src/lib/billing/save.ts).
+
+**Revisit when:** If a municipality reuses invoice numbers (haven't seen this), or if extraction routinely produces a null `tax_invoice_number`.
+
+---
+
+### Warning dedupe by message text on save
+**Date:** 2026-05-12
+**Status:** Active
+
+**Choice:** When collecting property-match warnings from the match result, dedupe by `(rule_name, message)` before inserting into `bill_field_errors`. Without dedupe, the same warning attached to a primary property + N line items (all referencing the same unit) produces N+1 identical rows.
+
+**Why:** First save run on Vredefort produced 14 identical "complex name on bill ('VREDEFORT') differs from DB ('3B Vredefort')" warnings — same underlying anomaly, 14 rows. A reviewer would dismiss all 14 with no extra information. One row conveys the same information.
+
+**Where:** [`src/lib/billing/save.ts`](src/lib/billing/save.ts) → `collectMatchWarnings()`.
+
+**Revisit when:** If we ever want per-line-item warnings to have line_item_id set (currently all property warnings are stored with `line_item_id: null`).
+
+---
+
 ## Deferred
 
 These are choices we've made *to defer*. Documented so they're not forgotten.
@@ -346,3 +376,6 @@ These are choices we've made *to defer*. Documented so they're not forgotten.
 | `source_type` "scanned" false positive on digital PDFs | Vredefort intermittently labelled "scanned" despite being digital — doesn't affect data quality | If it becomes a routing signal we depend on |
 | Regression test runner | Build once we have ~10 test bills | When test corpus grows |
 | Authentication | No auth in v1 per brief | When deploying beyond a private URL |
+| Re-upload of duplicate PDF leaves orphan in Storage | `test:save` uploads before idempotency check; if bill exists, the upload becomes orphaned. Acceptable for prototype (storage is cheap). | If orphan volume becomes a problem, reorder upload-after-extract or add Storage cleanup |
+| Atomic save via Postgres RPC | Current save is best-effort sequential inserts; partial state possible on mid-failure | If we hit real data integrity issues in production |
+| Sub-divided `field_name` on property warnings | All property warnings currently use generic `field_name: "property"`; message text carries the specifics | When the review UI needs to filter by which property attribute differs |

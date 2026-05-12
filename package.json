@@ -13,7 +13,9 @@
     "test:extraction": "tsx scripts/test-extraction.ts",
     "setup:storage": "tsx scripts/setup-storage.ts",
     "test:storage": "tsx scripts/test-storage.ts",
-    "test:matching": "tsx scripts/test-matching.ts"
+    "test:matching": "tsx scripts/test-matching.ts",
+    "test:save": "tsx scripts/test-save.ts",
+    "cleanup:test-data": "tsx scripts/cleanup-test-data.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.2",

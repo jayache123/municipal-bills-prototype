@@ -8,6 +8,35 @@ For full per-commit detail, see `git log`.
 
 ---
 
+## 2026-05-12 — Step 4: DB insert pipeline
+
+- `src/lib/billing/save.ts` — `saveExtractedBill()` persists an extraction:
+  creates missing municipality / billing account / properties (where the match
+  step said "needs create"), inserts the bill, batch-inserts line items with
+  correct property linkage, records matching warnings as `bill_field_errors`,
+  writes an `audit_log` entry. Idempotent via `tax_invoice_number`; `--force`
+  re-inserts cleanly via cascade-delete + re-insert.
+- `scripts/test-save.ts` — end-to-end CLI: upload PDF → match → save.
+- `scripts/cleanup-test-data.ts` — wipes bills/line-items/errors/audit log;
+  preserves seed data.
+- `match.ts` — exported `propertyIdentityKey` so save can reuse the same
+  identity rule when deduplicating new properties to create.
+- Warning collection in save now dedupes by message (the same property
+  warning attached to N line items collapses to a single bill_field_errors
+  row). Without this, Vredefort produced 14 identical warnings.
+
+Verified against all 3 test bills:
+- 19 Atholl: 23 line items, 0 warnings
+- Rockaways May 2026 (multi-unit): 21 line items, 3 unit IDs mapped, 0 warnings
+- 3B Vredefort: 15 line items, 1 deduped warning (complex_name diff)
+
+Test commands:
+- `npm run test:save -- <pdf>` — save (errors if a matching tax_invoice_number exists)
+- `npm run test:save -- <pdf> --force` — replace existing bill
+- `npm run cleanup:test-data -- --force` — clean slate for re-runs
+
+---
+
 ## 2026-05-12 — Documentation hardening + project hygiene
 
 Synced yesterday's commit (`47cb530`) into local `main` and pushed to GitHub `origin/main`.

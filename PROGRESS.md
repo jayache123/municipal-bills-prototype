@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** (pending) — Add documentation suite and project hygiene files
+**Last commit:** `9e2b30a` — Add documentation suite and project hygiene files
 **Branch:** `claude/optimistic-robinson-7f24d9`
 
 ---
@@ -23,10 +23,12 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
   - [`src/lib/billing/match.ts`](src/lib/billing/match.ts) — `matchExtractedBill()`
   - `npm run test:matching -- tmp/extraction-*.json` resolves matches without writing
   - Verified against 19 Atholl (single property), Vredefort (single unit + complex-name warning), Rockaways (multi-unit)
-- [ ] **Step 4** — DB insert pipeline (bill + line items + properties)
-  - Function `saveExtractedBill()` to create missing entities and insert bill + lines + warnings + audit
-  - CLI test `npm run test:save -- tmp/extraction-*.json`
-  - Insert with `status = 'pending_review'`; real status routing in Step 5
+- [x] **Step 4** — DB insert pipeline (bill + line items + properties)
+  - [`src/lib/billing/save.ts`](src/lib/billing/save.ts) — `saveExtractedBill()` creates missing entities, inserts bill + lines + warnings + audit; idempotent via `tax_invoice_number`; `--force` mode for re-insert
+  - [`scripts/test-save.ts`](scripts/test-save.ts) — full end-to-end CLI test (upload → match → save)
+  - [`scripts/cleanup-test-data.ts`](scripts/cleanup-test-data.ts) — wipes bills/line items/errors/audit; preserves seed data
+  - Verified against all 3 test bills: 3 bills, 59 line items, 1 warning persisted with full granular detail
+  - Multi-unit linkage confirmed: Rockaways line items correctly map to 3 different unit IDs; sundries correctly carry null `property_id`
 - [ ] **Step 5** — Hard checks → bill_field_errors → status routing
   - Promote the 5 hard checks in `scripts/test-extraction.ts` into a reusable module
   - Insert failures into `bill_field_errors`

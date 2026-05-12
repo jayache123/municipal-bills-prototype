@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `038eeb6` — Step 11: navigation shell (sidebar + top bar)
+**Last commit:** `ca36762` — docs: record Vercel deployment (Step 12)
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
@@ -64,6 +64,8 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
 
 ---
 
+## Frontend + deployment phase (Steps 8–12, complete)
+
 - [x] **Step 8** — Bills list + bill detail (review panel)
   - [`src/app/bills/page.tsx`](src/app/bills/page.tsx) — server component at `/bills`; table with Status, Property, Account, Period, Amount Due, Due Date columns; `StatusBadge` with full status config; empty state with Upload Bill CTA
   - [`src/app/bills/[id]/page.tsx`](src/app/bills/[id]/page.tsx) — server component at `/bills/:id`; parallel Supabase fetches (bill + line items + errors); four sections: status bar (with Approve button if `pending_review`), bill info grid, financial summary, issues list, line items table with category badges + tier labels + rebate/reversal markers
@@ -71,13 +73,6 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
   - [`src/app/bills/[id]/approve-button.tsx`](src/app/bills/[id]/approve-button.tsx) — `'use client'` button using `useTransition` for pending state
   - Fix: `formatTimestamp()` helper for ISO timestamps (`created_at`) — `formatDate()` only handles `YYYY-MM-DD` strings
   - Smoke-tested: 5 bills render correctly; "Needs Review" detail shows all 15 line items, 5 issues, correct Approve button; approve action working
-
----
-
-## What's next
-
-Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_code_prompt.md) frontend pages, in priority order:
-
 - [x] **Step 9** — Properties list + detail pages
   - [`src/app/properties/page.tsx`](src/app/properties/page.tsx) — server component at `/properties`; table with Status, Property, Complex/Unit, Account, Municipality columns; 8 properties rendered
   - [`src/app/properties/[id]/page.tsx`](src/app/properties/[id]/page.tsx) — server component at `/properties/:id`; parallel fetches for property + bills; Property Details info grid (12 fields); Bills history table (same style as `/bills`, filtered to `primary_property_id`); empty state when no bills exist
@@ -105,6 +100,22 @@ Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_c
   - Build: TypeScript clean, all 8 routes built, 27s build time
   - Live at: https://municipal-bills-prototype.vercel.app
   - Smoke-tested: `/`, `/bills`, `/properties` all returning 200
+
+---
+
+## What remains (future sessions)
+
+The prototype is demo-ready. Things to build next, in rough priority order:
+
+- [ ] **Vercel preview env vars** — set the 6 env vars for the Preview environment (currently production-only; needed for PR preview deploys)
+- [ ] **History-based anomaly checks** — variance vs baseline, consecutive estimated readings, materially-large reconciliations. Blocked until ≥3 bills per property are in the DB. (see DECISIONS.md Deferred section)
+- [ ] **Audit log page** — read-only table at `/audit` showing all `audit_log` rows (entity, action, user, timestamp)
+- [ ] **Settings page** — read/update the `settings` table rows (model name, confidence threshold, etc.)
+- [ ] **Authentication** — replace the placeholder "JA" account button with real auth; fill in Supabase RLS policies
+- [ ] **Performance / scale** — prompt caching, Haiku→Sonnet model tiering, async queue via Vercel Queues (see DECISIONS.md Deferred section)
+- [ ] **Scanned PDF test** — manufacture a phone-photo PDF, run extraction, verify the `scanned` source path
+- [ ] **Regression runner** — script that runs extraction on all test PDFs and reports pass/fail (useful when the prompt is changed)
+- [ ] **Credential rotation** — after the demo, rotate any credentials that appeared in chat during early setup
 
 ---
 

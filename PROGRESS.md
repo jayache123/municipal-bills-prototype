@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `4427fda` — Step 8: bills list + bill detail pages
+**Last commit:** `(pending)` — Step 9: properties list + detail pages
 **Branch:** `main`
 
 ---
@@ -77,7 +77,11 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
 
 Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_code_prompt.md) frontend pages, in priority order:
 
-- Properties list and detail pages
+- [x] **Step 9** — Properties list + detail pages
+  - [`src/app/properties/page.tsx`](src/app/properties/page.tsx) — server component at `/properties`; table with Status, Property, Complex/Unit, Account, Municipality columns; 8 properties rendered
+  - [`src/app/properties/[id]/page.tsx`](src/app/properties/[id]/page.tsx) — server component at `/properties/:id`; parallel fetches for property + bills; Property Details info grid (12 fields); Bills history table (same style as `/bills`, filtered to `primary_property_id`); empty state when no bills exist
+  - Smoke-tested: 269 Beach Road (1 bill shown); 225 Main Road Unit 34 (0 bills, empty state); breadcrumb, status bar, all fields correct
+
 - Dashboard home with three summary sections (billing health, usage overview, processing status)
 - Settings, sync, audit log pages
 - Vercel deployment + end-to-end verification

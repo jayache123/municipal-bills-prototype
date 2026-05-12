@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-05-12 — Step 9: Properties list + detail pages
+
+- `src/app/properties/page.tsx` — server-rendered properties list at `/properties`:
+    * Table columns: Status badge, Property (address + suburb), Complex / Unit,
+      Account (number + customer name), Municipality, View →
+    * Status badges for: active (green), inactive (grey), sold (muted grey)
+    * Sorted alphabetically by address
+- `src/app/properties/[id]/page.tsx` — server-rendered property detail at
+  `/properties/:id`:
+    * Parallel Supabase fetches: property + billing account + municipality;
+      bills filtered to `primary_property_id = id` ordered by period desc
+    * Status bar: property status badge + address + suburb
+    * **Property Details** info grid: municipality, account number, customer,
+      address, suburb, complex, unit, erf number, postal code, billing
+      frequency, status, registered date
+    * **Bills** table (same columns as `/bills`): status badge, period, amount
+      due, due date, View → link to `/bills/:id`; empty state ("No bills for
+      this property yet") when none exist
+    * Breadcrumb: "Properties / {complex} · Unit {n} · {address}"
+
+---
+
 ## 2026-05-12 — Step 8: Bills list + bill detail pages
 
 - `src/app/bills/page.tsx` — server-rendered bills list at `/bills`:

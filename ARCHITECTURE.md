@@ -43,6 +43,8 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 - `/upload` — drag-drop bill upload with live progress and colour-coded result cards (Step 7)
 - `/bills` — server-rendered bills list table with status badges and summary columns (Step 8)
 - `/bills/:id` — bill detail review panel: status bar with Approve action, bill info grid, financial summary, issues list, line items table (Step 8)
+- `/properties` — server-rendered properties list with status, address, complex/unit, account, municipality columns (Step 9)
+- `/properties/:id` — property detail: info grid + bills history table filtered to that property (Step 9)
 
 ### API routes (Next.js, in `src/app/api/`)
 - Accept uploads, trigger extractions, serve data to the frontend

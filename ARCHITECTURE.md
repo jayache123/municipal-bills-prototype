@@ -40,6 +40,7 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 - Pages and UI components
 - Calls API routes for everything (no direct DB or Anthropic access)
 - Shows status, errors, and review screens to the user
+- `/upload` — drag-drop bill upload with live progress and colour-coded result cards (Step 7)
 
 ### API routes (Next.js, in `src/app/api/`)
 - Accept uploads, trigger extractions, serve data to the frontend

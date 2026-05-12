@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `a77e733` — Step 6: HTTP upload API route + curl test
+**Last commit:** `(this commit)` — Step 7: drag-drop upload UI
 **Branch:** `main`
 
 ---
@@ -40,8 +40,15 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
   - Validation: PDF-only, ≤ 10 MB; graceful 422 for non-bills; 200 + `already_saved` for duplicate `tax_invoice_number`
   - Verified with curl against Rockaways Jan 2026 (fresh bill): `status: "approved"`, 22 line items, 0 errors
   - Also added `dotenv` override to `next.config.ts` to fix Claude Code shell env-var issue (see TROUBLESHOOTING.md)
-- [ ] **Step 7** — Drag-drop upload UI + status feedback
-  - `/upload` page with React drag-drop, shows processing status
+- [x] **Step 7** — Drag-drop upload UI + status feedback
+  - [`src/app/upload/page.tsx`](src/app/upload/page.tsx) — `'use client'` page at `/upload`
+  - Five-state machine: idle → selected → uploading → done → error
+  - Idle: dashed drop zone with drag-over highlight and click-to-browse fallback
+  - Selected: file chip with name + size, "Process Bill" button
+  - Uploading: spinner + "Extracting bill with AI…" + live `0:00` elapsed timer + honest progress hint (upload → extraction → validation)
+  - Done: colour-coded result card for each outcome — approved (green), pending_review (amber), hard_rejected (red), already_saved (zinc), not_a_bill (amber 422); each shows relevant counts and bill_id
+  - Error: red card with message + detail + "Try again" link
+  - Also added `.claude/launch.json` so `preview_start` can manage the dev server
 
 ---
 

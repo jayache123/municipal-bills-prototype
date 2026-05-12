@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-05-12 — Step 7: Drag-drop upload UI
+
+- `src/app/upload/page.tsx` — `'use client'` page at `/upload` with a
+  five-state machine (idle → selected → uploading → done → error):
+    * **Idle**: dashed drop zone; drag-over highlights blue; click-to-browse
+      via hidden `<input type="file">`; PDF-only validation before state advance
+    * **Selected**: file chip with name + size; "Process Bill" button; "Choose a
+      different file" escape hatch
+    * **Uploading**: animated spinner; "Extracting bill with AI…"; live elapsed
+      timer counting up in `0:00` format; honest progress hint that changes at
+      ~5 s (upload) → ~80 s (extraction) → ~80 s+ (validation)
+    * **Done**: colour-coded result card for every API outcome:
+        - `approved` → green: line items + warnings + errors counts
+        - `pending_review` → amber: issue count breakdown
+        - `hard_rejected` → red: critical failure count
+        - `already_saved` → zinc: "no changes made" + bill_id
+        - HTTP 422 not-a-bill → amber: rejection reason + detected type
+    * **Error**: red card with message + optional detail + "Try again"
+- `.claude/launch.json` — dev server config for the preview tool
+
+---
+
 ## 2026-05-12 — Step 6: HTTP upload API route
 
 - `src/app/api/bills/upload/route.ts` — `POST /api/bills/upload` accepts

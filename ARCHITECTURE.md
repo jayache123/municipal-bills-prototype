@@ -40,6 +40,7 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 - Pages and UI components
 - Calls API routes for everything (no direct DB or Anthropic access)
 - Shows status, errors, and review screens to the user
+- Shell: left sidebar (w-52) + top bar (h-14) in root layout — persistent across all pages (Step 11)
 - `/` — dashboard: summary stat cards, review queue, recent bills, quick links (Step 10)
 - `/upload` — drag-drop bill upload with live progress and colour-coded result cards (Step 7)
 - `/bills` — server-rendered bills list table with status badges and summary columns (Step 8)

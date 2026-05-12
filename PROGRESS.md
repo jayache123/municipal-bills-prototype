@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `01aba22` — Step 10: dashboard home page
+**Last commit:** `(pending)` — Step 11: navigation shell (sidebar + top bar)
 **Branch:** `main`
 
 ---
@@ -90,7 +90,14 @@ Per [brief](municipal-bills-prototype-prompts/municipal-bills-prototype-claude_c
   - Quick links bar: All Bills, Properties, Upload Bill
   - Smoke-tested: 1 pending review (R 11 147,16), R 43 554,38 approved, 8 properties, 5 recent bills showing correctly
 
-- Settings, sync, audit log pages
+- [x] **Step 11** — Navigation shell (sidebar + top bar)
+  - [`src/components/sidebar.tsx`](src/components/sidebar.tsx) — `'use client'` left sidebar; "Municipal Bills" app name; links for Dashboard, Bills, Properties, Upload Bill; active link highlighted via `usePathname()`; "Prototype v0.1" footer
+  - [`src/components/top-bar.tsx`](src/components/top-bar.tsx) — `'use client'` top bar; path-based breadcrumb built from `usePathname()` segments (UUID segments shown as "Detail"); each breadcrumb segment is a clickable link back to that level; "JA" circular account button top-right
+  - [`src/app/layout.tsx`](src/app/layout.tsx) — wired into root layout: full-height flex shell, sidebar fixed-left, right column = top bar + scrollable `<main>`; metadata updated to "Municipal Bills"
+  - [`src/app/bills/[id]/page.tsx`](src/app/bills/[id]/page.tsx) — replaced in-page breadcrumb nav with a proper `<h1>` showing the PDF filename; removed now-unused `Link` import
+  - [`src/app/properties/[id]/page.tsx`](src/app/properties/[id]/page.tsx) — replaced in-page breadcrumb nav with a `<h1>` showing the property display name
+  - Smoke-tested: Dashboard shows "Dashboard" crumb; bill detail shows "Dashboard / Bills / Detail" with all levels clickable; page heading shows full PDF filename
+
 - Vercel deployment + end-to-end verification
 
 ---

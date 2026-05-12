@@ -180,7 +180,7 @@ export default async function PropertyDetailPage({
     className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20",
   };
 
-  // Build the display name for the breadcrumb
+  // Build the display name shown as the page heading
   const displayName = [
     prop.complex_name,
     prop.unit_number ? `Unit ${prop.unit_number}` : null,
@@ -193,14 +193,10 @@ export default async function PropertyDetailPage({
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-6">
 
-        {/* ── Navigation ── */}
-        <div className="flex items-center gap-2 text-sm text-zinc-500">
-          <Link href="/properties" className="hover:text-zinc-900 transition-colors">
-            Properties
-          </Link>
-          <span>/</span>
-          <span className="text-zinc-800 font-medium truncate">{displayName}</span>
-        </div>
+        {/* ── Page heading ── */}
+        <h1 className="text-lg font-semibold text-zinc-900 truncate">
+          {displayName}
+        </h1>
 
         {/* ── Status bar ── */}
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-5 py-4">

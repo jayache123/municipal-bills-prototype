@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-05-12 — Step 11: Navigation shell
+
+- `src/components/sidebar.tsx` — `'use client'` left sidebar (w-52):
+    * "Municipal Bills" app name at top
+    * Nav links: Dashboard (exact match), Bills, Properties, Upload Bill
+    * Active link highlighted with `bg-zinc-100` via `usePathname()`
+    * "Prototype v0.1" label in footer
+- `src/components/top-bar.tsx` — `'use client'` top bar (h-14):
+    * Path-based breadcrumb from `usePathname()`: splits path into segments,
+      maps known slugs to readable labels (Dashboard, Bills, Properties,
+      Upload), UUID segments shown as "Detail"
+    * Every segment except the last is a clickable `<Link>` back to that level
+    * "JA" circular account button (w-8 h-8) top-right; no auth yet, initials
+      hardcoded as placeholder
+- `src/app/layout.tsx` — updated root layout:
+    * Full-height `flex overflow-hidden` shell: `<Sidebar>` + right column
+      (`<TopBar>` + scrollable `<main>`)
+    * Metadata title updated from "Create Next App" to "Municipal Bills"
+- `src/app/bills/[id]/page.tsx` — removed in-page breadcrumb nav; added
+  `<h1>` showing the PDF filename (previously only in the breadcrumb)
+- `src/app/properties/[id]/page.tsx` — removed in-page breadcrumb nav; added
+  `<h1>` showing the property display name (complex · unit · address)
+
+---
+
 ## 2026-05-12 — Step 10: Dashboard home page
 
 - `src/app/page.tsx` — replaces the default Next.js scaffold with a real

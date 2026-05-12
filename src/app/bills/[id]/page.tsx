@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { ApproveButton } from "./approve-button";
@@ -233,14 +232,10 @@ export default async function BillDetailPage({
     <div className="min-h-screen bg-zinc-50">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-6">
 
-        {/* ── Navigation ── */}
-        <div className="flex items-center gap-2 text-sm text-zinc-500">
-          <Link href="/bills" className="hover:text-zinc-900 transition-colors">Bills</Link>
-          <span>/</span>
-          <span className="text-zinc-800 font-medium truncate">
-            {bill.raw_pdf_filename ?? id}
-          </span>
-        </div>
+        {/* ── Page heading ── */}
+        <h1 className="text-lg font-semibold text-zinc-900 truncate">
+          {bill.raw_pdf_filename ?? id}
+        </h1>
 
         {/* ── Status bar ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-zinc-200 bg-white px-5 py-4">

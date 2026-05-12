@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-12
-**Last commit:** `(this commit)` — Step 7: drag-drop upload UI
+**Last commit:** `ac63303` — Step 7: drag-drop upload UI
 **Branch:** `main`
 
 ---
@@ -58,7 +58,7 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
 - [x] Supabase schema deployed (8 tables, 6 enums, RLS, indexes, 11 settings, seed data)
 - [x] `.env.local` populated; connection test passing
 - [x] CLI extraction working end-to-end on 3 real bills, all 5 hard checks passing
-- [x] README + DECISIONS + PROGRESS + supporting docs (this commit)
+- [x] README + DECISIONS + PROGRESS + supporting docs ac63303
 - [x] Project hygiene: `.nvmrc`, `.editorconfig`, `npm run check` (lint + typecheck + connections), `turbopack.root` set in `next.config.ts`
 
 ---

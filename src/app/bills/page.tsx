@@ -100,9 +100,16 @@ export default async function BillsPage({
     `)
     .order("created_at", { ascending: false });
 
-  if (period) {
-    // "2026-05" → "2026-05-01" (matches the DATE stored in summary_month)
-    query = query.eq("summary_month", `${period}-01`);
+  if (period && period !== "all") {
+    if (/^\d{4}$/.test(period)) {
+      // Full-year filter: "2026" → summary_month between 2026-01-01 and 2026-12-31
+      query = query
+        .gte("summary_month", `${period}-01-01`)
+        .lte("summary_month", `${period}-12-31`);
+    } else if (/^\d{4}-\d{2}$/.test(period)) {
+      // Month filter: "2026-05" → "2026-05-01"
+      query = query.eq("summary_month", `${period}-01`);
+    }
   }
 
   const { data, error } = await query;
@@ -127,7 +134,7 @@ export default async function BillsPage({
             <h1 className="text-xl font-semibold text-zinc-900">Bills</h1>
             <p className="mt-0.5 text-sm text-zinc-500">
               {bills.length} bill{bills.length !== 1 ? "s" : ""}
-              {period ? " this period" : " total"}
+              {period && period !== "all" ? " this period" : " total"}
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">

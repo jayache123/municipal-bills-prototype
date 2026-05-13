@@ -191,16 +191,20 @@ export default async function DashboardPage({
       .eq("status", "pending_review")
       .order("created_at", { ascending: false }),
 
-    // Recent bills — last 5 of any status, period-agnostic.
-    supabase
-      .from("bills")
-      .select(`
-        id, status, billing_period_start, total_amount_due, raw_pdf_filename,
-        billing_accounts ( account_number, customer_name ),
-        primary_property:properties!primary_property_id ( address, suburb )
-      `)
-      .order("created_at", { ascending: false })
-      .limit(5),
+    // Period bills — all bills for the active period, ordered newest first.
+    (() => {
+      let q = supabase
+        .from("bills")
+        .select(`
+          id, status, billing_period_start, total_amount_due, raw_pdf_filename,
+          billing_accounts ( account_number, customer_name ),
+          primary_property:properties!primary_property_id ( address, suburb )
+        `)
+        .order("billing_period_start", { ascending: false });
+      if (isMonth) q = q.eq("summary_month", `${activePeriod}-01`);
+      else if (isYear) q = q.gte("summary_month", `${activePeriod}-01-01`).lte("summary_month", `${activePeriod}-12-31`);
+      return q;
+    })(),
 
     // Property count — top-level only (exclude child units).
     supabase
@@ -213,7 +217,7 @@ export default async function DashboardPage({
 
   const summaryBills  = (summaryRes.data  ?? []) as BillSummary[];
   const queueBills    = (queueRes.data    ?? []) as unknown as BillRow[];
-  const recentBills   = (recentRes.data   ?? []) as unknown as BillRow[];
+  const periodBills   = (recentRes.data   ?? []) as unknown as BillRow[];
   const propertyCount = (propertiesRes.data ?? []).length;
 
   const pendingReviewCount = summaryBills.filter(b => b.status === "pending_review").length;
@@ -300,31 +304,39 @@ export default async function DashboardPage({
           </div>
         </div>
 
-        {/* ── Recent bills ── */}
+        {/* ── Period bills ── */}
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
           <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3">
-            <h2 className="text-sm font-semibold text-zinc-700">Recent Bills</h2>
-            <Link href="/bills" className="text-xs text-zinc-400 hover:text-zinc-900 transition-colors">
+            <h2 className="text-sm font-semibold text-zinc-700">
+              Bills
+              {periodBills.length > 0 && (
+                <span className="ml-2 text-xs font-normal text-zinc-400">{periodBills.length}</span>
+              )}
+            </h2>
+            <Link
+              href={isMonth || isYear ? `/bills?period=${activePeriod}` : "/bills"}
+              className="text-xs text-zinc-400 hover:text-zinc-900 transition-colors"
+            >
               View all →
             </Link>
           </div>
-          <div className="px-5">
-            {recentBills.length === 0 ? (
-              <div className="py-8 text-center">
-                <p className="text-sm text-zinc-400">No bills yet</p>
-                <Link
-                  href="/upload"
-                  className="mt-2 inline-block text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
-                >
-                  Upload a bill →
-                </Link>
-              </div>
-            ) : (
-              recentBills.map((bill) => (
+          {periodBills.length === 0 ? (
+            <div className="py-8 text-center px-5">
+              <p className="text-sm text-zinc-400">No bills for this period</p>
+              <Link
+                href="/upload"
+                className="mt-2 inline-block text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+              >
+                Upload a bill →
+              </Link>
+            </div>
+          ) : (
+            <div className="px-5 overflow-y-auto max-h-80">
+              {periodBills.map((bill) => (
                 <BillListRow key={bill.id} bill={bill} />
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ── Quick links ── */}

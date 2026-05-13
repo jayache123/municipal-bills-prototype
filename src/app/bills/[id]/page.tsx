@@ -643,7 +643,7 @@ export default async function BillDetailPage({
                         <td className="px-4 py-3 align-top text-zinc-500 whitespace-nowrap">
                           {item.period_start
                             ? formatMonth(item.period_start)
-                            : formatMonth(bill.summary_month)}
+                            : formatMonth(bill.issue_date)}
                         </td>
 
                         {/* Amount */}

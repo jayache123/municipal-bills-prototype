@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-13 — Month column falls back to issue date
+
+### Fix
+- Detailed Breakdown "Month" column now falls back to `bill.issue_date` (instead of
+  `bill.summary_month`) when a line item has no `period_start` of its own. This ensures
+  the displayed month matches the date printed on the bill.
+
+---
+
 ## 2026-05-13 — Fix Reading column, Units Used, and Days in Detailed Breakdown
 
 ### Fix

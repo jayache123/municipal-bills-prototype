@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** fix: correct Reading column, Units Used aggregation, and Days off-by-one in bill detail
+**Last commit:** fix: Month column in Detailed Breakdown falls back to issue_date not summary_month
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 

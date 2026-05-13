@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** fix: collapse multi-row sections to one row per category in bill detail
+**Last commit:** fix: enrich Notes column with per-component breakdown from sub-rows
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 

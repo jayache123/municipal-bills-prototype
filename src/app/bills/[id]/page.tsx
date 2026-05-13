@@ -284,16 +284,37 @@ export default async function BillDetailPage({
       .map((i) => i.utility_category)
   );
 
-  // Aggregate notes from non-informational, non-subtotal rows per category.
-  const categoryAggNotes = new Map<string, string>();
+  // Build per-component note strings for each category — one entry per
+  // non-informational, non-subtotal row. Each entry combines the row's
+  // description (tariff formula / tier label) with the amount it contributed,
+  // so a reviewer can see exactly what makes up the section total.
+  // These entries become the Notes bullets when the subtotal row's own
+  // notes field is sparse or null.
+  const categoryAggNotes = new Map<string, string[]>();
   for (const item of lineItems) {
     if (item.line_type === "informational" || item.line_type === "subtotal") continue;
-    if (!item.notes) continue;
-    const existing = categoryAggNotes.get(item.utility_category);
-    categoryAggNotes.set(
-      item.utility_category,
-      existing ? `${existing}; ${item.notes}` : item.notes,
-    );
+
+    const pieces: string[] = [];
+
+    // Description carries the tariff formula / tier label / charge name.
+    if (item.description) pieces.push(item.description);
+
+    // Append the amount so each bullet self-documents its contribution.
+    if (item.amount !== null) {
+      const val = Number(item.amount);
+      const abs = Math.abs(val).toLocaleString("en-ZA", { minimumFractionDigits: 2 });
+      pieces.push(val < 0 ? `= −R ${abs}` : `= R ${abs}`);
+    }
+
+    // Any additional structured notes captured during extraction.
+    if (item.notes) pieces.push(`(${item.notes})`);
+
+    const entry = pieces.join(" ");
+    if (entry.trim()) {
+      const arr = categoryAggNotes.get(item.utility_category) ?? [];
+      arr.push(entry);
+      categoryAggNotes.set(item.utility_category, arr);
+    }
   }
 
   // One display row per section.
@@ -551,13 +572,13 @@ export default async function BillDetailPage({
                                         : "";
                     const itemLabel   = catLabel + unitSuffix;
 
-                    // Notes: prefer the item's own notes, fall back to aggregated
-                    // notes from the component rows (useful for subtotal rows whose
-                    // own notes field may be null).
-                    const rawNotes    = item.notes ?? categoryAggNotes.get(item.utility_category) ?? null;
-                    const noteParts   = rawNotes
-                                        ? rawNotes.split(/;\s*/).map(p => p.trim()).filter(Boolean)
-                                        : [];
+                    // Notes: if the item has its own notes string (new extraction
+                    // format, one row per section), split it on ";" into bullets.
+                    // Otherwise fall back to the per-component array built above,
+                    // which shows description + amount for every sub-charge row.
+                    const noteParts   = item.notes
+                                        ? item.notes.split(/;\s*/).map(p => p.trim()).filter(Boolean)
+                                        : (categoryAggNotes.get(item.utility_category) ?? []);
 
                     return (
                       <tr

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-13 — Richer Notes column from component-row breakdown
+
+### UI
+- Notes (Tariffs & Basis) column now shows one bullet per sub-charge when the
+  displayed row is a collapsed subtotal. Each bullet is built from the component
+  row's `description` (tariff formula / tier label) + its `amount`, e.g.:
+  - `R5,065,000 @ 0.0071590 ÷ 365 × 33 = R3,278.33`
+  - `Additional rebate credit = −R281.55`
+  - `Tier 1 12/06/2025: 374.795 kWh @ R2.987 = R1,119.60`
+  - `Reversal of estimated 660.467 kWh = −R2,033.21`
+- Bills with new extraction format (one row per section, own notes field) are
+  unchanged — their notes string is still split on ";" into bullets.
+
+---
+
 ## 2026-05-13 — Collapse multi-row sections to one row per category
 
 ### Fix

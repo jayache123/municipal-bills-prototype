@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** 1c96fdb — feat: make entire rows clickable instead of View → links
+**Last commit:** feat: add property filter dropdown to dashboard and bills list
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
@@ -12,6 +12,15 @@ Where we are right now and what's next. Updated on every commit.
 ## Current phase: "UI polish + data quality"
 
 ### Status
+
+- [x] **Property filter dropdown** — Searchable property dropdown alongside the period selector on dashboard and bills list
+  - `src/components/property-filter.tsx` — "use client" searchable dropdown
+  - Preserves `period` param when selecting a property; preserves `property` param when changing period
+  - `DashboardPeriodSelector` updated to use `useSearchParams()` so it no longer clobbers `?property=…`
+  - Dashboard: summary stats, review queue, and period bills all filtered by selected property
+  - Bills list: bills query filtered by selected property
+  - Dropdown: "All properties" clears filter; search input autofocuses; closes on outside click
+  - Active state: dark pill; inactive: bordered pill (matches period selector style)
 
 - [x] **Clickable rows** — Every bill and property row is now fully clickable (no "View →" link)
   - Dashboard rows: wrapped in `<Link>` directly (div-based layout)

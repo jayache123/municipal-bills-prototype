@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { DashboardPeriodSelector } from "@/components/dashboard-period-selector";
+import { PropertyFilter, type PropertyOption } from "@/components/property-filter";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -80,9 +81,10 @@ function formatZAR(amount: number | null): string {
 export default async function BillsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; property?: string }>;
 }) {
-  const { period } = await searchParams;
+  const { period, property } = await searchParams;
+  const propertyId = property ?? null;
   const supabase = getSupabaseServiceClient();
 
   // Build query — filter by summary_month only when a period is selected.
@@ -112,7 +114,25 @@ export default async function BillsPage({
     }
   }
 
-  const { data, error } = await query;
+  if (propertyId) {
+    query = query.eq("primary_property_id", propertyId);
+  }
+
+  // Fetch property options for the filter dropdown (top-level only).
+  type PropertyOptionRow = { id: string; address: string; complex_name: string | null };
+  const [{ data, error }, propertyOptionsRes] = await Promise.all([
+    query,
+    supabase
+      .from("properties")
+      .select("id, address, complex_name")
+      .is("parent_property_id", null)
+      .order("address", { ascending: true }),
+  ]);
+
+  const propertyOptions: PropertyOption[] = ((propertyOptionsRes.data ?? []) as PropertyOptionRow[]).map((p) => ({
+    id: p.id,
+    label: p.complex_name ?? p.address,
+  }));
 
   if (error) {
     return (
@@ -145,9 +165,11 @@ export default async function BillsPage({
           </Link>
         </div>
 
-        {/* ── Period selector ── */}
-        <div className="mb-6">
+        {/* ── Period selector + property filter ── */}
+        <div className="mb-6 flex items-center gap-3 flex-wrap">
           <DashboardPeriodSelector selected={(!period || period === "all") ? "all" : period} />
+          <div className="h-4 w-px bg-zinc-200" />
+          <PropertyFilter properties={propertyOptions} selected={propertyId} />
         </div>
 
         {/* ── Empty state ── */}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { DashboardPeriodSelector } from "@/components/dashboard-period-selector";
+import { PropertyFilter, type PropertyOption } from "@/components/property-filter";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -135,9 +136,10 @@ function BillListRow({ bill }: { bill: BillRow }) {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; property?: string }>;
 }) {
-  const { period } = await searchParams;
+  const { period, property } = await searchParams;
+  const propertyId = property ?? null;
 
   // Resolve the active period:
   //   undefined  → default to current calendar month
@@ -176,20 +178,28 @@ export default async function DashboardPage({
   }
   // isAll → no filter added
 
-  const [summaryRes, queueRes, recentRes, propertiesRes] = await Promise.all([
-    // Summary stats — filtered by the selected period.
-    summaryQuery,
+  const [summaryRes, queueRes, recentRes, propertiesRes, propertyOptionsRes] = await Promise.all([
+    // Summary stats — filtered by the selected period (and property if set).
+    (() => {
+      let q = summaryQuery;
+      if (propertyId) q = q.eq("primary_property_id", propertyId);
+      return q;
+    })(),
 
     // Review queue — ALL pending_review bills regardless of period (it's an action queue).
-    supabase
-      .from("bills")
-      .select(`
-        id, status, billing_period_start, total_amount_due, raw_pdf_filename,
-        billing_accounts ( account_number, customer_name ),
-        primary_property:properties!primary_property_id ( address, suburb )
-      `)
-      .eq("status", "pending_review")
-      .order("created_at", { ascending: false }),
+    (() => {
+      let q = supabase
+        .from("bills")
+        .select(`
+          id, status, billing_period_start, total_amount_due, raw_pdf_filename,
+          billing_accounts ( account_number, customer_name ),
+          primary_property:properties!primary_property_id ( address, suburb )
+        `)
+        .eq("status", "pending_review")
+        .order("created_at", { ascending: false });
+      if (propertyId) q = q.eq("primary_property_id", propertyId);
+      return q;
+    })(),
 
     // Period bills — all bills for the active period, ordered newest first.
     (() => {
@@ -203,6 +213,7 @@ export default async function DashboardPage({
         .order("billing_period_start", { ascending: false });
       if (isMonth) q = q.eq("summary_month", `${activePeriod}-01`);
       else if (isYear) q = q.gte("summary_month", `${activePeriod}-01-01`).lte("summary_month", `${activePeriod}-12-31`);
+      if (propertyId) q = q.eq("primary_property_id", propertyId);
       return q;
     })(),
 
@@ -211,6 +222,13 @@ export default async function DashboardPage({
       .from("properties")
       .select("id")
       .is("parent_property_id", null),
+
+    // Property options for the filter dropdown — top-level only.
+    supabase
+      .from("properties")
+      .select("id, address, complex_name, suburb")
+      .is("parent_property_id", null)
+      .order("address", { ascending: true }),
   ]);
 
   // ── Compute aggregates ───────────────────────────────────────────────────
@@ -219,6 +237,12 @@ export default async function DashboardPage({
   const queueBills    = (queueRes.data    ?? []) as unknown as BillRow[];
   const periodBills   = (recentRes.data   ?? []) as unknown as BillRow[];
   const propertyCount = (propertiesRes.data ?? []).length;
+
+  type PropertyOptionRow = { id: string; address: string; complex_name: string | null; suburb: string | null };
+  const propertyOptions: PropertyOption[] = ((propertyOptionsRes.data ?? []) as PropertyOptionRow[]).map((p) => ({
+    id: p.id,
+    label: p.complex_name ?? p.address,
+  }));
 
   const pendingReviewCount = summaryBills.filter(b => b.status === "pending_review").length;
   const hardRejectedCount  = summaryBills.filter(b => b.status === "hard_rejected").length;
@@ -249,8 +273,12 @@ export default async function DashboardPage({
           </Link>
         </div>
 
-        {/* ── Period selector ── */}
-        <DashboardPeriodSelector selected={activePeriod} />
+        {/* ── Period selector + property filter ── */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <DashboardPeriodSelector selected={activePeriod} />
+          <div className="h-4 w-px bg-zinc-200" />
+          <PropertyFilter properties={propertyOptions} selected={propertyId} />
+        </div>
 
         {/* ── Summary cards ── */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

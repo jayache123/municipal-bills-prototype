@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -33,8 +33,9 @@ function formatMonthLabel(period: string): string {
  *   selected — "all" | "YYYY" | "YYYY-MM"
  */
 export function DashboardPeriodSelector({ selected }: { selected: string }) {
-  const router   = useRouter();
-  const pathname = usePathname();
+  const router       = useRouter();
+  const pathname     = usePathname();
+  const searchParams = useSearchParams();
 
   const months = generateMonths();
   const years  = [...new Set(months.map((m) => m.slice(0, 4)))];
@@ -55,8 +56,11 @@ export function DashboardPeriodSelector({ selected }: { selected: string }) {
 
   // Always push an explicit ?period= param so the server can distinguish
   // "all" from "no param (default to current month)".
+  // Preserve any other params (e.g. ?property=…) that may already be in the URL.
   function navigate(period: string) {
-    router.push(`${pathname}?period=${period}`);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("period", period);
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   // Shared pill classes

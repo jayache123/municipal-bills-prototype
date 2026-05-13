@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-13 — Property filter dropdown
+
+### UI
+- `src/components/property-filter.tsx` — new "use client" searchable dropdown component.
+  Shows a pill button ("All properties" or the selected property name); clicking opens a
+  panel with a search input (autofocused) and a scrollable list of top-level properties.
+  Preserves the `?period=…` param when navigating, and vice versa.
+- `src/components/dashboard-period-selector.tsx` — updated `navigate()` to use
+  `useSearchParams()` so period changes no longer clobber an active `?property=…` param.
+- `src/app/page.tsx` — dashboard fetches top-level property options; reads `?property=`
+  from searchParams; applies `primary_property_id` filter to summary stats, review queue,
+  and period bills queries; renders `<PropertyFilter>` inline with period selector.
+- `src/app/bills/page.tsx` — same: property options fetch, `?property=` filter on bills
+  query, `<PropertyFilter>` rendered alongside period selector.
+
+---
+
 ## 2026-05-13 — UI polish + data quality
 
 ### UI

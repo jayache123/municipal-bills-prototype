@@ -101,7 +101,7 @@ export default async function PropertiesPage() {
               <table className="min-w-full divide-y divide-zinc-100">
                 <thead>
                   <tr className="bg-zinc-50">
-                    {["Status", "Property", "Complex / Unit", "Account", "Municipality", ""].map((h) => (
+                    {["Status", "Property", "Complex / Unit", "Account", "Municipality"].map((h) => (
                       <th
                         key={h}
                         scope="col"
@@ -119,10 +119,11 @@ export default async function PropertiesPage() {
                     const hasComplex = prop.complex_name || prop.unit_number;
 
                     return (
-                      <tr key={prop.id} className="hover:bg-zinc-50/60 transition-colors">
+                      <tr key={prop.id} className="relative cursor-pointer hover:bg-zinc-50/60 transition-colors">
 
-                        {/* Status */}
+                        {/* Stretched link — covers the entire row */}
                         <td className="px-4 py-3 whitespace-nowrap">
+                          <Link href={`/properties/${prop.id}`} className="absolute inset-0" aria-label={`View property ${prop.address}`} />
                           <StatusBadge status={prop.status} />
                         </td>
 
@@ -164,16 +165,6 @@ export default async function PropertiesPage() {
                         {/* Municipality */}
                         <td className="px-4 py-3 text-sm text-zinc-500 whitespace-nowrap">
                           {muni?.name ?? "—"}
-                        </td>
-
-                        {/* Link */}
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <Link
-                            href={`/properties/${prop.id}`}
-                            className="text-xs font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
-                          >
-                            View →
-                          </Link>
                         </td>
 
                       </tr>

@@ -168,7 +168,7 @@ export default async function BillsPage({
               <table className="min-w-full divide-y divide-zinc-100">
                 <thead>
                   <tr className="bg-zinc-50">
-                    {["Status", "Property", "Account", "Period", "Amount Due", "Due Date", ""].map((h) => (
+                    {["Status", "Property", "Account", "Period", "Amount Due", "Due Date"].map((h) => (
                       <th
                         key={h}
                         scope="col"
@@ -184,9 +184,10 @@ export default async function BillsPage({
                     const acct = bill.billing_accounts;
                     const prop = bill.primary_property;
                     return (
-                      <tr key={bill.id} className="hover:bg-zinc-50/60 transition-colors">
-                        {/* Status */}
+                      <tr key={bill.id} className="relative cursor-pointer hover:bg-zinc-50/60 transition-colors">
+                        {/* Stretched link — covers the entire row */}
                         <td className="px-4 py-3 whitespace-nowrap">
+                          <Link href={`/bills/${bill.id}`} className="absolute inset-0" aria-label={`View bill ${bill.id}`} />
                           <StatusBadge status={bill.status} />
                         </td>
 
@@ -227,16 +228,6 @@ export default async function BillsPage({
                         {/* Due date */}
                         <td className="px-4 py-3 text-sm text-zinc-500 whitespace-nowrap">
                           {formatDate(bill.due_date)}
-                        </td>
-
-                        {/* Link */}
-                        <td className="px-4 py-3 whitespace-nowrap text-right">
-                          <Link
-                            href={`/bills/${bill.id}`}
-                            className="text-xs font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
-                          >
-                            View →
-                          </Link>
                         </td>
                       </tr>
                     );

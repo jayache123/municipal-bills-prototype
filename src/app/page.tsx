@@ -100,12 +100,15 @@ function StatCard({
   );
 }
 
-function BillListRow({ bill, linkLabel = "View →" }: { bill: BillRow; linkLabel?: string }) {
+function BillListRow({ bill }: { bill: BillRow }) {
   const prop = bill.primary_property;
   const acct = bill.billing_accounts;
 
   return (
-    <div className="flex items-center gap-4 py-3 border-b border-zinc-100 last:border-0">
+    <Link
+      href={`/bills/${bill.id}`}
+      className="flex items-center gap-4 py-3 border-b border-zinc-100 last:border-0 hover:bg-zinc-50/60 transition-colors"
+    >
       <div className="shrink-0">
         <StatusBadge status={bill.status} />
       </div>
@@ -123,13 +126,7 @@ function BillListRow({ bill, linkLabel = "View →" }: { bill: BillRow; linkLabe
         </p>
         <p className="text-xs text-zinc-400">{formatPeriod(bill.billing_period_start)}</p>
       </div>
-      <Link
-        href={`/bills/${bill.id}`}
-        className="shrink-0 text-xs font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
-      >
-        {linkLabel}
-      </Link>
-    </div>
+    </Link>
   );
 }
 
@@ -297,7 +294,7 @@ export default async function DashboardPage({
               </div>
             ) : (
               queueBills.map((bill) => (
-                <BillListRow key={bill.id} bill={bill} linkLabel="Review →" />
+                <BillListRow key={bill.id} bill={bill} />
               ))
             )}
           </div>

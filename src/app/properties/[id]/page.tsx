@@ -270,7 +270,7 @@ export default async function PropertyDetailPage({
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-zinc-100">
-                    {["Unit", "Erf", "Municipal Valuation", "Status", ""].map((h) => (
+                    {["Unit", "Erf", "Municipal Valuation", "Status"].map((h) => (
                       <th
                         key={h}
                         scope="col"
@@ -283,8 +283,9 @@ export default async function PropertyDetailPage({
                 </thead>
                 <tbody className="divide-y divide-zinc-50">
                   {childUnits.map((unit) => (
-                    <tr key={unit.id} className="hover:bg-zinc-50/60 transition-colors">
+                    <tr key={unit.id} className="relative cursor-pointer hover:bg-zinc-50/60 transition-colors">
                       <td className="py-3 pr-6 text-sm font-medium text-zinc-800 whitespace-nowrap">
+                        <Link href={`/properties/${unit.id}`} className="absolute inset-0" aria-label={`View unit ${unit.unit_number}`} />
                         Unit {unit.unit_number ?? "—"}
                       </td>
                       <td className="py-3 pr-6 text-sm text-zinc-500 whitespace-nowrap">
@@ -297,14 +298,6 @@ export default async function PropertyDetailPage({
                       </td>
                       <td className="py-3 pr-6 whitespace-nowrap">
                         <StatusBadge status={unit.status} config={PROPERTY_STATUS_CONFIG} />
-                      </td>
-                      <td className="py-3 whitespace-nowrap text-right">
-                        <Link
-                          href={`/properties/${unit.id}`}
-                          className="text-xs font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
-                        >
-                          View →
-                        </Link>
                       </td>
                     </tr>
                   ))}
@@ -331,7 +324,7 @@ export default async function PropertyDetailPage({
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-zinc-100">
-                    {["Status", "Period", "Amount Due", "Due Date", ""].map((h) => (
+                    {["Status", "Period", "Amount Due", "Due Date"].map((h) => (
                       <th
                         key={h}
                         scope="col"
@@ -344,8 +337,9 @@ export default async function PropertyDetailPage({
                 </thead>
                 <tbody className="divide-y divide-zinc-50">
                   {bills.map((bill) => (
-                    <tr key={bill.id} className="hover:bg-zinc-50/60 transition-colors">
+                    <tr key={bill.id} className="relative cursor-pointer hover:bg-zinc-50/60 transition-colors">
                       <td className="py-3 pr-6 whitespace-nowrap">
+                        <Link href={`/bills/${bill.id}`} className="absolute inset-0" aria-label={`View bill`} />
                         <StatusBadge status={bill.status} config={BILL_STATUS_CONFIG} />
                       </td>
                       <td className="py-3 pr-6 text-sm text-zinc-600 whitespace-nowrap">
@@ -356,14 +350,6 @@ export default async function PropertyDetailPage({
                       </td>
                       <td className="py-3 pr-6 text-sm text-zinc-500 whitespace-nowrap">
                         {formatDate(bill.due_date)}
-                      </td>
-                      <td className="py-3 whitespace-nowrap text-right">
-                        <Link
-                          href={`/bills/${bill.id}`}
-                          className="text-xs font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
-                        >
-                          View →
-                        </Link>
                       </td>
                     </tr>
                   ))}

@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** feat: redesign bill detail page layout
+**Last commit:** fix: collapse multi-row sections to one row per category in bill detail
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 

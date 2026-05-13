@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-13 — Collapse multi-row sections to one row per category
+
+### Fix
+- Old extraction format (pre step-13) stored multiple DB rows per utility section
+  (charge + rebate + reversal + subtotal). The Detailed Breakdown was rendering all of
+  them, making bills like 3B Vredefort show 5 rows for Property Rates and 8 for
+  Electricity instead of 1 each.
+- New logic: for any utility category that has a `subtotal` row, only the subtotal row
+  is shown — its amount is already net (rebate/reversal folded in). Categories without
+  a subtotal (new extraction format) show all non-informational rows unchanged.
+- Financial Summary fixed for the same reason: previously summed sub-rows AND the
+  subtotal, double-counting the amounts. Now uses the same `displayItems` set.
+- Notes column: subtotal rows that have sparse notes fall back to aggregated notes
+  from their component rows, so tariff/rebate detail is not lost.
+
+---
+
 ## 2026-05-13 — Bill detail page redesign
 
 ### UI

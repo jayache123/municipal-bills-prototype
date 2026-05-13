@@ -266,11 +266,51 @@ export default async function BillDetailPage({
   const acct = bill.billing_accounts;
   const prop = bill.primary_property;
 
-  // ── Financial summary: sum amounts per utility_category ───────────────────
+  // ── Collapse multi-row sections into one display row per category ─────────
+  //
+  // Old extraction format: multiple rows per category (charge + rebate +
+  // reversal + subtotal). New format: one row per category already.
+  //
+  // Strategy: for any category that has a subtotal row, show ONLY the subtotal
+  // row (which already carries the net amount with rebates folded in).
+  // For categories with no subtotal, show all non-informational rows.
+  //
+  // We also build aggregated notes from the component rows so the Notes column
+  // stays informative even when the subtotal row's own notes field is sparse.
+
+  const categoryHasSubtotal = new Set<string>(
+    lineItems
+      .filter((i) => i.line_type === "subtotal")
+      .map((i) => i.utility_category)
+  );
+
+  // Aggregate notes from non-informational, non-subtotal rows per category.
+  const categoryAggNotes = new Map<string, string>();
+  for (const item of lineItems) {
+    if (item.line_type === "informational" || item.line_type === "subtotal") continue;
+    if (!item.notes) continue;
+    const existing = categoryAggNotes.get(item.utility_category);
+    categoryAggNotes.set(
+      item.utility_category,
+      existing ? `${existing}; ${item.notes}` : item.notes,
+    );
+  }
+
+  // One display row per section.
+  const displayItems = lineItems.filter((item) => {
+    if (item.line_type === "informational") return false;
+    return categoryHasSubtotal.has(item.utility_category)
+      ? item.line_type === "subtotal"
+      : true;
+  });
+
+  // ── Financial summary: sum display-row amounts per utility_category ───────
+  //
+  // Using displayItems (not lineItems) prevents double-counting when both
+  // sub-rows and a subtotal row exist for the same category.
 
   const categoryAmounts = new Map<string, number>();
-  for (const item of lineItems) {
-    if (item.line_type === "informational") continue;
+  for (const item of displayItems) {
     if (item.amount === null) continue;
     const cat = item.utility_category;
     categoryAmounts.set(cat, (categoryAmounts.get(cat) ?? 0) + Number(item.amount));
@@ -492,11 +532,10 @@ export default async function BillDetailPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {lineItems.map((item, idx) => {
-                    const prevCat     = idx > 0 ? lineItems[idx - 1].utility_category : null;
+                  {displayItems.map((item, idx) => {
+                    const prevCat     = idx > 0 ? displayItems[idx - 1].utility_category : null;
                     const catChanged  = prevCat !== null && prevCat !== item.utility_category;
                     const isCredit    = item.line_type === "rebate" || item.line_type === "reversal";
-                    const isSubtotal  = item.line_type === "subtotal";
                     const catColor    = CATEGORY_COLORS[item.utility_category] ?? "bg-zinc-100 text-zinc-500";
                     const catLabel    = CATEGORY_LABELS[item.utility_category]
                                         ?? item.utility_category.replace(/_/g, " ");
@@ -504,25 +543,26 @@ export default async function BillDetailPage({
                     const amountVal   = item.amount !== null ? Number(item.amount) : null;
                     const isNegative  = amountVal !== null && amountVal < 0;
 
-                    // Build item label: base description + unit suffix if applicable.
-                    const baseLabel   = item.section_label ?? item.description ?? catLabel;
+                    // Build item label: category label + unit suffix if applicable.
+                    // Use catLabel (not section_label/description) so subtotal rows
+                    // don't render "PROPERTY RATES subtotal" as the item text.
                     const unitSuffix  = item.property?.unit_number
                                         ? ` — Unit ${item.property.unit_number}`
                                         : "";
-                    const itemLabel   = baseLabel + unitSuffix;
+                    const itemLabel   = catLabel + unitSuffix;
 
-                    // Notes: split on "; " to render each clause on its own line.
-                    const noteParts   = item.notes
-                                        ? item.notes.split(/;\s*/).map(p => p.trim()).filter(Boolean)
+                    // Notes: prefer the item's own notes, fall back to aggregated
+                    // notes from the component rows (useful for subtotal rows whose
+                    // own notes field may be null).
+                    const rawNotes    = item.notes ?? categoryAggNotes.get(item.utility_category) ?? null;
+                    const noteParts   = rawNotes
+                                        ? rawNotes.split(/;\s*/).map(p => p.trim()).filter(Boolean)
                                         : [];
 
                     return (
                       <tr
                         key={item.id}
-                        className={[
-                          catChanged ? "border-t-2 border-zinc-200" : "border-t border-zinc-50",
-                          isSubtotal ? "bg-zinc-50" : "",
-                        ].join(" ")}
+                        className={catChanged ? "border-t-2 border-zinc-200" : "border-t border-zinc-50"}
                       >
                         {/* Category badge — shown on every row */}
                         <td className="px-5 py-3 align-top whitespace-nowrap">
@@ -533,9 +573,7 @@ export default async function BillDetailPage({
 
                         {/* Item description + optional unit */}
                         <td className="px-4 py-3 align-top text-zinc-700 whitespace-nowrap">
-                          <span className={isSubtotal ? "font-semibold" : ""}>
-                            {itemLabel}
-                          </span>
+                          <span>{itemLabel}</span>
                           {isCredit && (
                             <span className="ml-1.5 inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-green-600/20">
                               {item.line_type}
@@ -552,11 +590,7 @@ export default async function BillDetailPage({
 
                         {/* Amount */}
                         <td className={`px-4 py-3 align-top text-right tabular-nums font-mono ${
-                          isCredit || isNegative
-                            ? "text-green-600"
-                            : isSubtotal
-                              ? "font-semibold text-zinc-900"
-                              : "text-zinc-700"
+                          isCredit || isNegative ? "text-green-600" : "text-zinc-700"
                         }`}>
                           {amountVal !== null
                             ? `${isNegative ? "−" : ""}R ${Math.abs(amountVal).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
-import { PeriodSelector } from "@/components/period-selector";
+import { DashboardPeriodSelector } from "@/components/dashboard-period-selector";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -142,29 +142,46 @@ export default async function DashboardPage({
 }) {
   const { period } = await searchParams;
 
-  // Default to the current calendar month if no period is in the URL.
+  // Resolve the active period:
+  //   undefined  → default to current calendar month
+  //   "all"      → no filter (all time)
+  //   "YYYY"     → full year
+  //   "YYYY-MM"  → specific month
   const now = new Date();
-  const activePeriod =
-    period ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const activePeriod = period ?? currentMonth;
 
-  // Human-readable label for the active period (used in subtitle).
-  const [selYear, selMonth] = activePeriod.split("-").map(Number);
-  const periodLabel = new Date(selYear, selMonth - 1, 1).toLocaleDateString("en-ZA", {
-    month: "long",
-    year: "numeric",
-  });
+  const isAll   = activePeriod === "all";
+  const isYear  = /^\d{4}$/.test(activePeriod);
+  const isMonth = /^\d{4}-\d{2}$/.test(activePeriod);
 
-  // Supabase DATE value: "2026-05" → "2026-05-01"
-  const summaryMonthFilter = `${activePeriod}-01`;
+  // Human-readable subtitle label.
+  let periodLabel: string;
+  if (isAll) {
+    periodLabel = "All periods";
+  } else if (isYear) {
+    periodLabel = activePeriod;
+  } else {
+    const [y, m] = activePeriod.split("-").map(Number);
+    periodLabel = new Date(y, m - 1, 1).toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+  }
 
   const supabase = getSupabaseServiceClient();
 
+  // Build the summary stats query with the appropriate filter.
+  let summaryQuery = supabase.from("bills").select("status, total_amount_due");
+  if (isMonth) {
+    summaryQuery = summaryQuery.eq("summary_month", `${activePeriod}-01`);
+  } else if (isYear) {
+    summaryQuery = summaryQuery
+      .gte("summary_month", `${activePeriod}-01-01`)
+      .lte("summary_month", `${activePeriod}-12-31`);
+  }
+  // isAll → no filter added
+
   const [summaryRes, queueRes, recentRes, propertiesRes] = await Promise.all([
     // Summary stats — filtered by the selected period.
-    supabase
-      .from("bills")
-      .select("status, total_amount_due")
-      .eq("summary_month", summaryMonthFilter),
+    summaryQuery,
 
     // Review queue — ALL pending_review bills regardless of period (it's an action queue).
     supabase
@@ -218,21 +235,21 @@ export default async function DashboardPage({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold text-zinc-900">Dashboard</h1>
             <p className="mt-0.5 text-sm text-zinc-500">{periodLabel}</p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <PeriodSelector selected={activePeriod} showAll={false} />
-            <Link
-              href="/upload"
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
-            >
-              + Upload Bill
-            </Link>
-          </div>
+          <Link
+            href="/upload"
+            className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
+          >
+            + Upload Bill
+          </Link>
         </div>
+
+        {/* ── Period selector ── */}
+        <DashboardPeriodSelector selected={activePeriod} />
 
         {/* ── Summary cards ── */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

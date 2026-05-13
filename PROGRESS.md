@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** feat: backfill ai_summary for all 5 bills that had none
+**Last commit:** feat: inline status pills + 7 Vredefort bills + property filter bug fixes
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
@@ -12,6 +12,31 @@ Where we are right now and what's next. Updated on every commit.
 ## Current phase: "UI polish + data quality"
 
 ### Status
+
+- [x] **Inline status pills** — Every status badge across the app is now a clickable pill that changes status inline without a page reload
+  - `src/components/status-pill.tsx` — "use client" dropdown: fixed-position panel (escapes `overflow:hidden` tables), optimistic UI update with revert on error, outside-click close, `stopPropagation` so stretched-link rows don't navigate when clicking the pill
+  - `src/lib/status-options.ts` — single source of truth for `BILL_STATUS_OPTIONS` (10 statuses) and `PROPERTY_STATUS_OPTIONS` (3 statuses)
+  - `src/app/bills/[id]/actions.ts` — `updateBillStatus()` server action; `approveBill()` now delegates to it
+  - `src/app/properties/actions.ts` — `updatePropertyStatus()` server action
+  - All 4 pages updated: bills list, bill detail, properties list, property detail (status bar + info grid + child units table + bills table)
+  - Properties list: added `export const dynamic = "force-dynamic"` (was pre-rendering as Static — caused stale status after changes)
+  - Removed `ApproveButton` component and local `STATUS_CONFIG` / `StatusBadge` from all pages
+
+- [x] **Manual bill insertion: 3B Vredefort Unit 24 (Sep 2025–Mar 2026)** — 7 months of bills ingested without using Anthropic API credits
+  - `scripts/insert-vredefort-bills.ts` — idempotent insertion via `tax_invoice_number`; all bills set to `status: "approved"`, `extraction_model: "manual"`, `confidence_score: 100`; each bill has hand-written `ai_summary` bullets; audit log entry per bill
+  - Bills cover: Sep 2025, Oct 2025, Nov 2025, Dec 2025, Jan 2026, Feb 2026, Mar 2026
+  - Meter chain verified: 24171→25091→25831→26282→26635→26977→27266→27562 (all actual readings, no gaps)
+  - Script header contains full template documentation for future CLI insertions: property linkage rules, idempotency, financial checks, meter chain verification, status guidance, post-insert verification command
+  - Pre-existing August 2025 bill (Invoice 202011396764) discovered linked to parent property — relinked to Unit 24 for consistency; audit log entry written
+
+- [x] **Property filter + property detail bills bug fix** — Bills were not showing when filtering by 3B Vredefort; bills section was empty on property detail page
+  - Root cause: filter used `.eq("primary_property_id", parentId)` but bills are linked to Unit 24 (child property)
+  - Fix in `src/app/bills/page.tsx`: fetch child unit IDs first, then `.in("primary_property_id", [parentId, ...childIds])`
+  - Fix in `src/app/properties/[id]/page.tsx`: restructured data fetching from single parallel `Promise.all` to two steps — get child units first, then bills with combined property ID array
+
+- [x] **Verification scripts**
+  - `scripts/verify-bills-for-property.ts` — general-purpose per-property verifier; checks per bill: financial totals, VAT consistency, balance arithmetic, period ordering, meter chain continuity, line item existence; accepts `PROPERTY_ID` env var; also resolves child unit IDs so running against a parent catches unit-linked bills
+  - `scripts/verify-vredefort-bills.ts` — one-off verification + August bill relink script (no longer needed but kept for reference)
 
 - [x] **Full bill review** — Methodical pass through all 6 bills; three issues found and fixed:
   - Rockaways May 2026: sundry subtotal corrected in DB (R521.72 → R181.83, was double-counting electricity fixed charge)
@@ -195,16 +220,23 @@ The prototype is demo-ready. Things to build next, in rough priority order:
 
 ## Test bill inventory
 
-All 6 bills are extracted, saved, approved, and in the live DB. Use this as the regression set when changing the extraction prompt.
+All 13 bills are saved and approved in the live DB. The first 6 were AI-extracted; the remaining 7 were manually inserted via CLI script.
 
-| File (in `example_rates/`) | Account | Period | What it exercises |
-|---|---|---|---|
-| `Twin Towers - October 2024.PDF` | 228414930 | Oct 2024 | Multi-unit rates-only bill (3 units: 65, 117, 191 on Erf 1099); no VAT; old extraction format (separate charge rows, no subtotal rows) |
-| `3B Vredefort Unit 24 - August 2025 Rates Account.pdf` | 235055327 | Aug 2025 | Single unit (24), 63-day electricity period across two tariff periods, 4 tier lines, reversal of estimated 660 kWh, rates rebate |
-| `Rockaways Rates January 2026.PDF` | 219850405 | Jan 2026 | Multi-unit (3 units: 68, 34, 2 on Erf 1705), rates + sundries (incl. prepaid elec service charge), old extraction format |
-| `19 Atholl Road Rates - February 2026.pdf` | 239130147 | Feb 2026 | Single property, full utility suite: rates + estimated electricity + water + refuse + sewerage + improvement district + sundries |
-| `19 Atholl Road Rates - April 2026.PDF` | 239130147 | Apr 2026 | Same property as above, 91-day electricity period (reversal of 1,033 kWh estimate), water/sewerage on prior-month reading dates |
-| `Rockaways Rates May 2026.PDF` | 219850405 | May 2026 | Multi-unit (same 3 units as Jan 2026), prepaid electricity fixed charge, sundries with rebates |
+| File (in `example_rates/`) | Account | Period | Method | What it exercises |
+|---|---|---|---|---|
+| `Twin Towers - October 2024.PDF` | 228414930 | Oct 2024 | AI | Multi-unit rates-only (3 units: 65, 117, 191 on Erf 1099); no VAT; old extraction format |
+| `3B Vredefort Unit 24 - August 2025 Rates Account.pdf` | 235055327 | Aug 2025 | AI | Single unit (24), 63-day elec period, 4 tier lines, reversal of estimated 660 kWh, rates rebate |
+| `Rockaways Rates January 2026.PDF` | 219850405 | Jan 2026 | AI | Multi-unit (3 units: 68, 34, 2 on Erf 1705), rates + sundries; old extraction format |
+| `19 Atholl Road Rates - February 2026.pdf` | 239130147 | Feb 2026 | AI | Single property, full utility suite: rates + estimated elec + water + refuse + sewerage + improvement district + sundries |
+| `19 Atholl Road Rates - April 2026.PDF` | 239130147 | Apr 2026 | AI | 91-day elec period (reversal of 1,033 kWh estimate), water/sewerage on prior-month reading dates |
+| `Rockaways Rates May 2026.PDF` | 219850405 | May 2026 | AI | Multi-unit (same 3 units as Jan 2026), prepaid electricity fixed charge, sundries with rebates |
+| `3B Vredefort Unit 24 - Sep 2025.pdf` | 235055327 | Sep 2025 | Manual | Meter 24171→25091, 920 kWh |
+| `3B Vredefort Unit 24 - Oct 2025.pdf` | 235055327 | Oct 2025 | Manual | Meter 25091→25831, 740 kWh |
+| `3B Vredefort Unit 24 - Nov 2025.pdf` | 235055327 | Nov 2025 | Manual | Meter 25831→26282, 451 kWh |
+| `3B Vredefort Unit 24 - Dec 2025.pdf` | 235055327 | Dec 2025 | Manual | Meter 26282→26635, 353 kWh |
+| `3B Vredefort Unit 24 - Jan 2026.pdf` | 235055327 | Jan 2026 | Manual | Meter 26635→26977, 342 kWh |
+| `3B Vredefort Unit 24 - Feb 2026.pdf` | 235055327 | Feb 2026 | Manual | Meter 26977→27266, 289 kWh |
+| `3B Vredefort Unit 24 - Mar 2026.pdf` | 235055327 | Mar 2026 | Manual | Meter 27266→27562, 296 kWh |
 
 Raw extraction JSONs live in `tmp/` (gitignored) after running `npm run test:extraction`.
 

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
 import { DashboardPeriodSelector } from "@/components/dashboard-period-selector";
 import { PropertyFilter, type PropertyOption } from "@/components/property-filter";
+import { StatusPill } from "@/components/status-pill";
+import { BILL_STATUS_OPTIONS } from "@/lib/status-options";
+import { updateBillStatus } from "./[id]/actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,30 +25,6 @@ type BillRow = {
     suburb: string | null;
   } | null;
 };
-
-// ── Status badge ──────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  approved:       { label: "Approved",     className: "bg-green-50   text-green-700  ring-green-600/20" },
-  pending_review: { label: "Needs Review", className: "bg-amber-50   text-amber-700  ring-amber-600/20" },
-  hard_rejected:  { label: "Rejected",     className: "bg-red-50     text-red-700    ring-red-600/20"   },
-  received:       { label: "Received",     className: "bg-zinc-100   text-zinc-600   ring-zinc-500/20"  },
-  expected:       { label: "Expected",     className: "bg-blue-50    text-blue-700   ring-blue-600/20"  },
-  queried:        { label: "Queried",      className: "bg-orange-50  text-orange-700 ring-orange-600/20"},
-  reviewed:       { label: "Reviewed",     className: "bg-indigo-50  text-indigo-700 ring-indigo-600/20"},
-  paid:           { label: "Paid",         className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20"},
-  overdue:        { label: "Overdue",      className: "bg-red-50     text-red-800    ring-red-700/20"   },
-  not_applicable: { label: "N/A",          className: "bg-zinc-50    text-zinc-400   ring-zinc-400/20"  },
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20" };
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${cfg.className}`}>
-      {cfg.label}
-    </span>
-  );
-}
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -116,8 +95,19 @@ export default async function BillsPage({
     }
   }
 
+  // When filtering by a parent property, also include any child units so that
+  // bills linked directly to a unit (e.g. 3B Vredefort Unit 24) still appear
+  // when the user selects the parent complex from the dropdown.
   if (propertyId) {
-    query = query.eq("primary_property_id", propertyId);
+    const { data: childData } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("parent_property_id", propertyId);
+    const childIds = (childData ?? []).map((p: { id: string }) => p.id);
+    const propertyIds = [propertyId, ...childIds];
+    query = propertyIds.length === 1
+      ? query.eq("primary_property_id", propertyId)
+      : query.in("primary_property_id", propertyIds);
   }
 
   // Fetch property options for the filter dropdown (top-level only).
@@ -216,12 +206,17 @@ export default async function BillsPage({
                   {bills.map((bill) => {
                     const acct = bill.billing_accounts;
                     const prop = bill.primary_property;
+                    const boundUpdateStatus = updateBillStatus.bind(null, bill.id);
                     return (
                       <tr key={bill.id} className="relative cursor-pointer hover:bg-zinc-50/60 transition-colors">
                         {/* Stretched link — covers the entire row */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <Link href={`/bills/${bill.id}`} className="absolute inset-0" aria-label={`View bill ${bill.id}`} />
-                          <StatusBadge status={bill.status} />
+                          <StatusPill
+                            currentStatus={bill.status}
+                            options={BILL_STATUS_OPTIONS}
+                            onSelect={boundUpdateStatus}
+                          />
                         </td>
 
                         {/* Property */}

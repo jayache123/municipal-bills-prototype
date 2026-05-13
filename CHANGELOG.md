@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-05-13 — Inline status pills + 7 Vredefort bills + property filter fixes
+
+### UI — Inline status pills
+- `src/components/status-pill.tsx` (new) — "use client" clickable pill component that opens a fixed-position dropdown to change status inline. Key features: optimistic update with revert on error, `useTransition` for pending state, `getBoundingClientRect()` so the dropdown escapes `overflow:hidden` table containers, outside-click handler, `stopPropagation` so stretched-link rows don't navigate on pill click, `z-10` so pill sits above the absolute inset link.
+- `src/lib/status-options.ts` (new) — single source of truth for `BILL_STATUS_OPTIONS` (10 statuses) and `PROPERTY_STATUS_OPTIONS` (3 statuses).
+- `src/app/bills/[id]/actions.ts` — added `updateBillStatus(billId, status)` server action; `approveBill` now delegates to it; both revalidate `/bills/${billId}`, `/bills`, and `/`.
+- `src/app/properties/actions.ts` (new) — `updatePropertyStatus(propertyId, status)` server action; revalidates `/properties/${propertyId}`, `/properties`, and `/`.
+- All 4 pages migrated from static `StatusBadge` to interactive `StatusPill`: bills list, bill detail, properties list, property detail (status bar, info grid, child units table, bills history table).
+- `src/app/properties/page.tsx` — added `export const dynamic = "force-dynamic"` (page was pre-rendering as Static; status changes were not reflected until next build).
+- Removed `ApproveButton` component from bill detail (pill covers approve and all other transitions). Removed all local `STATUS_CONFIG` / `StatusBadge` definitions from pages.
+
+### Data — 7 Vredefort Unit 24 bills (manual insertion)
+- `scripts/insert-vredefort-bills.ts` (new) — idempotent CLI script; inserts 7 bills (Sep 2025–Mar 2026) for 3B Vredefort Unit 24 without using Anthropic API. Each bill has 7 line items (rates charge, rates rebate, rates subtotal, electricity charge, electricity service charge, electricity subtotal, sundry), hand-written `ai_summary` bullets, `extraction_model: "manual"`, `confidence_score: 100`, `status: "approved"`, and an `audit_log` entry.
+- Meter chain verified before insertion: 24171→25091→25831→26282→26635→26977→27266→27562 — all actual readings, no gaps or reversals.
+- Pre-existing August 2025 bill (Invoice 202011396764) was linked to the parent property (`672431a0`). The verify script relinked it and its line items to Unit 24 (`f48dd23f`) for consistency with the 7 new bills; audit log entry written.
+- `scripts/verify-bills-for-property.ts` (new) — general-purpose verification script (accepts `PROPERTY_ID` env var). Per-bill checks: line item total + VAT = `current_amount_due`, balance arithmetic (`prev − payments + current = total`), VAT consistency, period ordering, due date ordering, electricity meter chain continuity. Run with: `PROPERTY_ID=<uuid> npx tsx --env-file=.env.local scripts/verify-bills-for-property.ts`
+- `scripts/verify-vredefort-bills.ts` (new) — one-off Vredefort inspect + relink script (kept for reference).
+
+### Fix — Property filter and property detail bills section
+- **Bills page property filter** (`src/app/bills/page.tsx`): filter was using `.eq("primary_property_id", parentId)` — missed bills linked to child units. Now fetches child unit IDs first and uses `.in("primary_property_id", [parentId, ...childIds])`.
+- **Property detail bills section** (`src/app/properties/[id]/page.tsx`): bills query was not including child unit IDs. Restructured data fetching from a single parallel `Promise.all` to two steps: (1) fetch property + child units in parallel, (2) fetch bills using combined ID array. Now bills linked to any child unit appear on the parent property page.
+
+---
+
 ## 2026-05-13 — Backfill ai_summary for 5 bills
 
 ### Data

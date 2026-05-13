@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { StatusPill } from "@/components/status-pill";
+import { PROPERTY_STATUS_OPTIONS } from "@/lib/status-options";
+import { updatePropertyStatus } from "./actions";
+
+export const dynamic = "force-dynamic";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,23 +23,6 @@ type PropertyRow = {
     municipalities: { name: string } | null;
   } | null;
 };
-
-// ── Status badge ──────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  active:   { label: "Active",   className: "bg-green-50  text-green-700  ring-green-600/20"  },
-  inactive: { label: "Inactive", className: "bg-zinc-100  text-zinc-500   ring-zinc-400/20"   },
-  sold:     { label: "Sold",     className: "bg-zinc-100  text-zinc-400   ring-zinc-300/20"   },
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20" };
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${cfg.className}`}>
-      {cfg.label}
-    </span>
-  );
-}
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -118,13 +106,18 @@ export default async function PropertiesPage() {
                     const muni = acct?.municipalities;
                     const hasComplex = prop.complex_name || prop.unit_number;
 
+                    const boundUpdateStatus = updatePropertyStatus.bind(null, prop.id);
                     return (
                       <tr key={prop.id} className="relative cursor-pointer hover:bg-zinc-50/60 transition-colors">
 
                         {/* Stretched link — covers the entire row */}
                         <td className="px-4 py-3 whitespace-nowrap">
                           <Link href={`/properties/${prop.id}`} className="absolute inset-0" aria-label={`View property ${prop.address}`} />
-                          <StatusBadge status={prop.status} />
+                          <StatusPill
+                            currentStatus={prop.status}
+                            options={PROPERTY_STATUS_OPTIONS}
+                            onSelect={boundUpdateStatus}
+                          />
                         </td>
 
                         {/* Property */}

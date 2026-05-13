@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { StatusPill } from "@/components/status-pill";
+import { BILL_STATUS_OPTIONS, PROPERTY_STATUS_OPTIONS } from "@/lib/status-options";
+import { updatePropertyStatus } from "../actions";
+import { updateBillStatus } from "@/app/bills/[id]/actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -44,36 +48,6 @@ type BillRow = {
   due_date: string | null;
   raw_pdf_filename: string | null;
 };
-
-// ── Status configs ────────────────────────────────────────────────────────────
-
-const PROPERTY_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  active:   { label: "Active",   className: "bg-green-50  text-green-700  ring-green-600/20" },
-  inactive: { label: "Inactive", className: "bg-zinc-100  text-zinc-500   ring-zinc-400/20"  },
-  sold:     { label: "Sold",     className: "bg-zinc-100  text-zinc-400   ring-zinc-300/20"  },
-};
-
-const BILL_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  approved:       { label: "Approved",     className: "bg-green-50   text-green-700  ring-green-600/20"  },
-  pending_review: { label: "Needs Review", className: "bg-amber-50   text-amber-700  ring-amber-600/20"  },
-  hard_rejected:  { label: "Rejected",     className: "bg-red-50     text-red-700    ring-red-600/20"    },
-  received:       { label: "Received",     className: "bg-zinc-100   text-zinc-600   ring-zinc-500/20"   },
-  expected:       { label: "Expected",     className: "bg-blue-50    text-blue-700   ring-blue-600/20"   },
-  queried:        { label: "Queried",      className: "bg-orange-50  text-orange-700 ring-orange-600/20" },
-  reviewed:       { label: "Reviewed",     className: "bg-indigo-50  text-indigo-700 ring-indigo-600/20" },
-  paid:           { label: "Paid",         className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20"},
-  overdue:        { label: "Overdue",      className: "bg-red-50     text-red-800    ring-red-700/20"    },
-  not_applicable: { label: "N/A",          className: "bg-zinc-50    text-zinc-400   ring-zinc-400/20"   },
-};
-
-function StatusBadge({ status, config }: { status: string; config: typeof BILL_STATUS_CONFIG }) {
-  const cfg = config[status] ?? { label: status, className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20" };
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${cfg.className}`}>
-      {cfg.label}
-    </span>
-  );
-}
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -140,8 +114,8 @@ export default async function PropertyDetailPage({
   const { id } = await params;
   const supabase = getSupabaseServiceClient();
 
-  // Fetch property, bills, and child units in parallel.
-  const [propRes, billsRes, childUnitsRes] = await Promise.all([
+  // Step 1: fetch property details and child units in parallel.
+  const [propRes, childUnitsRes] = await Promise.all([
     supabase
       .from("properties")
       .select(`
@@ -166,19 +140,6 @@ export default async function PropertyDetailPage({
       .eq("id", id)
       .single(),
 
-    supabase
-      .from("bills")
-      .select(`
-        id,
-        status,
-        billing_period_start,
-        total_amount_due,
-        due_date,
-        raw_pdf_filename
-      `)
-      .eq("primary_property_id", id)
-      .order("billing_period_start", { ascending: false }),
-
     // Child units linked to this property as parent.
     supabase
       .from("properties")
@@ -190,15 +151,28 @@ export default async function PropertyDetailPage({
   if (propRes.error || !propRes.data) notFound();
 
   const prop = propRes.data as unknown as Property;
-  const bills = (billsRes.data ?? []) as unknown as BillRow[];
   const childUnits = (childUnitsRes.data ?? []) as unknown as ChildUnit[];
+
+  // Step 2: fetch bills for this property AND any child units, so that bills
+  // linked directly to a unit record still appear on the parent property page.
+  const childUnitIds = childUnits.map((u) => u.id);
+  const propertyIds = [id, ...childUnitIds];
+  const billsRes = await supabase
+    .from("bills")
+    .select(`
+      id,
+      status,
+      billing_period_start,
+      total_amount_due,
+      due_date,
+      raw_pdf_filename
+    `)
+    .in("primary_property_id", propertyIds)
+    .order("billing_period_start", { ascending: false });
+
+  const bills = (billsRes.data ?? []) as unknown as BillRow[];
   const acct = prop.billing_accounts;
   const muni = acct?.municipalities;
-
-  const propStatusCfg = PROPERTY_STATUS_CONFIG[prop.status] ?? {
-    label: prop.status,
-    className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20",
-  };
 
   // Build the display name shown as the page heading
   const displayName = [
@@ -220,9 +194,11 @@ export default async function PropertyDetailPage({
 
         {/* ── Status bar ── */}
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-5 py-4">
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${propStatusCfg.className}`}>
-            {propStatusCfg.label}
-          </span>
+          <StatusPill
+            currentStatus={prop.status}
+            options={PROPERTY_STATUS_OPTIONS}
+            onSelect={updatePropertyStatus.bind(null, prop.id)}
+          />
           <span className="text-sm font-medium text-zinc-800">{prop.address}</span>
           {prop.suburb && (
             <span className="text-sm text-zinc-400">{prop.suburb}</span>
@@ -251,7 +227,7 @@ export default async function PropertyDetailPage({
                   ? prop.billing_frequency.charAt(0).toUpperCase() + prop.billing_frequency.slice(1)
                   : null },
               { label: "Status",              value: (
-                <StatusBadge status={prop.status} config={PROPERTY_STATUS_CONFIG} />
+                <StatusPill currentStatus={prop.status} options={PROPERTY_STATUS_OPTIONS} onSelect={updatePropertyStatus.bind(null, prop.id)} />
               )},
               { label: "Registered",          value: new Date(prop.created_at).toLocaleDateString("en-ZA", {
                   day: "numeric", month: "short", year: "numeric"
@@ -297,7 +273,11 @@ export default async function PropertyDetailPage({
                           : <span className="text-zinc-300">Not yet captured</span>}
                       </td>
                       <td className="py-3 pr-6 whitespace-nowrap">
-                        <StatusBadge status={unit.status} config={PROPERTY_STATUS_CONFIG} />
+                        <StatusPill
+                          currentStatus={unit.status}
+                          options={PROPERTY_STATUS_OPTIONS}
+                          onSelect={updatePropertyStatus.bind(null, unit.id)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -340,7 +320,11 @@ export default async function PropertyDetailPage({
                     <tr key={bill.id} className="relative cursor-pointer hover:bg-zinc-50/60 transition-colors">
                       <td className="py-3 pr-6 whitespace-nowrap">
                         <Link href={`/bills/${bill.id}`} className="absolute inset-0" aria-label={`View bill`} />
-                        <StatusBadge status={bill.status} config={BILL_STATUS_CONFIG} />
+                        <StatusPill
+                          currentStatus={bill.status}
+                          options={BILL_STATUS_OPTIONS}
+                          onSelect={updateBillStatus.bind(null, bill.id)}
+                        />
                       </td>
                       <td className="py-3 pr-6 text-sm text-zinc-600 whitespace-nowrap">
                         {formatPeriod(bill.billing_period_start)}

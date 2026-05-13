@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
-import { ApproveButton } from "./approve-button";
+import { StatusPill } from "@/components/status-pill";
+import { BILL_STATUS_OPTIONS } from "@/lib/status-options";
+import { updateBillStatus } from "./actions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,18 +77,7 @@ type FieldError = {
   resolved: boolean;
 };
 
-// ── Status config ─────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  approved:       { label: "Approved",     className: "bg-green-50   text-green-700  ring-green-600/20"  },
-  pending_review: { label: "Needs Review", className: "bg-amber-50   text-amber-700  ring-amber-600/20"  },
-  hard_rejected:  { label: "Rejected",     className: "bg-red-50     text-red-700    ring-red-600/20"    },
-  received:       { label: "Received",     className: "bg-zinc-100   text-zinc-600   ring-zinc-500/20"   },
-  queried:        { label: "Queried",      className: "bg-orange-50  text-orange-700 ring-orange-600/20" },
-  reviewed:       { label: "Reviewed",     className: "bg-indigo-50  text-indigo-700 ring-indigo-600/20" },
-  paid:           { label: "Paid",         className: "bg-emerald-50 text-emerald-700 ring-emerald-600/20"},
-  overdue:        { label: "Overdue",      className: "bg-red-50     text-red-800    ring-red-700/20"    },
-};
+// ── Severity / category configs ───────────────────────────────────────────────
 
 const SEVERITY_CONFIG: Record<string, { label: string; className: string }> = {
   critical: { label: "Critical", className: "bg-red-50   text-red-700   ring-red-600/20"   },
@@ -265,11 +256,6 @@ export default async function BillDetailPage({
   const lineItems = (lineItemsRes.data ?? []) as unknown as LineItem[];
   const errors    = (errorsRes.data    ?? []) as unknown as FieldError[];
 
-  const statusCfg = STATUS_CONFIG[bill.status] ?? {
-    label: bill.status,
-    className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20",
-  };
-  const canApprove = bill.status === "pending_review";
   const acct = bill.billing_accounts;
   const prop = bill.primary_property;
 
@@ -403,9 +389,11 @@ export default async function BillDetailPage({
         {/* ── Status bar ── */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-zinc-200 bg-white px-5 py-4">
           <div className="flex items-center gap-3">
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${statusCfg.className}`}>
-              {statusCfg.label}
-            </span>
+            <StatusPill
+              currentStatus={bill.status}
+              options={BILL_STATUS_OPTIONS}
+              onSelect={updateBillStatus.bind(null, bill.id)}
+            />
             <span className="text-sm text-zinc-500">
               Processed {formatTimestamp(bill.created_at)}
             </span>
@@ -416,24 +404,11 @@ export default async function BillDetailPage({
             )}
           </div>
 
-          <div className="flex items-center gap-3">
-            {canApprove && (
-              <>
-                {errors.length > 0 && (
-                  <p className="text-xs text-amber-600">
-                    {errors.length} unresolved issue{errors.length !== 1 ? "s" : ""} — review before approving
-                  </p>
-                )}
-                <ApproveButton billId={bill.id} />
-              </>
-            )}
-            {bill.status === "approved" && (
-              <p className="text-sm text-green-600 font-medium">✓ Approved</p>
-            )}
-            {bill.status === "hard_rejected" && (
-              <p className="text-sm text-red-600 font-medium">⚠ Validation failed — cannot approve</p>
-            )}
-          </div>
+          {errors.length > 0 && (
+            <p className="text-xs text-amber-600">
+              {errors.length} unresolved issue{errors.length !== 1 ? "s" : ""} — review before approving
+            </p>
+          )}
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════════

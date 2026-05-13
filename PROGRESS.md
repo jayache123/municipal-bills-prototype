@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** feat: inline status pills + 7 Vredefort bills + property filter bug fixes
+**Last commit:** fix: property detail Period column uses issue_date like bills list page
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 

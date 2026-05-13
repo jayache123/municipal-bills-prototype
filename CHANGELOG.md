@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-05-13 — Fix Period column on property detail bills table
+
+### Fix
+- `src/app/properties/[id]/page.tsx` — Period column in the Bills section now uses
+  `issue_date ?? billing_period_start`, matching the bills list page logic. Previously
+  it always showed the billing period start month (e.g. Apr 2026 for an Apr–May window)
+  rather than the issue date month (May 2026). Also added `issue_date` to the Supabase
+  query select and `BillRow` type.
+
+---
+
 ## 2026-05-13 — Inline status pills + 7 Vredefort bills + property filter fixes
 
 ### UI — Inline status pills

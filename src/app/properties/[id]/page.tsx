@@ -43,6 +43,7 @@ type ChildUnit = {
 type BillRow = {
   id: string;
   status: string;
+  issue_date: string | null;
   billing_period_start: string | null;
   total_amount_due: number | null;
   due_date: string | null;
@@ -162,6 +163,7 @@ export default async function PropertyDetailPage({
     .select(`
       id,
       status,
+      issue_date,
       billing_period_start,
       total_amount_due,
       due_date,
@@ -327,7 +329,7 @@ export default async function PropertyDetailPage({
                         />
                       </td>
                       <td className="py-3 pr-6 text-sm text-zinc-600 whitespace-nowrap">
-                        {formatPeriod(bill.billing_period_start)}
+                        {formatPeriod(bill.issue_date ?? bill.billing_period_start)}
                       </td>
                       <td className="py-3 pr-6 text-sm font-semibold text-zinc-800 whitespace-nowrap">
                         {formatZAR(bill.total_amount_due)}

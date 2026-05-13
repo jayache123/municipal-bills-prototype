@@ -308,8 +308,14 @@ type WarningRow = {
  * and that all units have their parent_property_id set.
  *
  * A "parent" property is a record with unit_number = null for the same
- * complex_name + address + billing_account. Units are linked to it so the UI
- * can group them under a single property card.
+ * billing_account. Units are linked to it so the UI can group them under a
+ * single property card.
+ *
+ * Strategy: look up the actual DB unit records by billing_account + unit_number
+ * (reliable identifiers). If they already have a parent_property_id set (e.g.
+ * from the backfill script), skip them — no action needed. Only create a new
+ * parent and link units when units genuinely have no parent yet. Parent lookup
+ * uses case-insensitive matching to handle PDF extraction case differences.
  */
 async function ensureParentProperties(
   supabase: SupabaseClient,
@@ -318,42 +324,61 @@ async function ensureParentProperties(
 ): Promise<void> {
   if (unitProperties.length === 0) return;
 
-  // Group by complex_name + address to find distinct complexes.
-  const complexKeys = new Set(
-    unitProperties
-      .filter((p) => p.complex_name && p.address)
-      .map((p) => `${p.complex_name}||${p.address}`)
-  );
+  const unitNumbers = unitProperties
+    .filter((p) => p.unit_number)
+    .map((p) => p.unit_number!);
 
-  for (const key of complexKeys) {
-    const [complexName, address] = key.split("||");
+  if (unitNumbers.length === 0) return;
 
-    // Check if a parent (unit_number IS NULL) already exists.
-    const { data: existing } = await supabase
+  // Fetch the actual DB records for the extracted unit numbers.
+  const { data: dbUnits } = await supabase
+    .from("properties")
+    .select("id, unit_number, parent_property_id, complex_name, address, erf_number, suburb, postal_code")
+    .eq("billing_account_id", billingAccountId)
+    .in("unit_number", unitNumbers);
+
+  if (!dbUnits || dbUnits.length === 0) return;
+
+  // Units that already have a parent don't need any action.
+  const unitsNeedingParent = dbUnits.filter((u) => !u.parent_property_id);
+  if (unitsNeedingParent.length === 0) return;
+
+  // Group the parentless units by complex_name + address.
+  const groups = new Map<string, typeof dbUnits>();
+  for (const unit of unitsNeedingParent) {
+    const key = `${(unit.complex_name ?? "").toLowerCase().trim()}||${(unit.address ?? "").toLowerCase().trim()}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(unit);
+  }
+
+  for (const [, units] of groups) {
+    const rep = units[0];
+
+    // Check for an existing parent using case-insensitive match to tolerate
+    // PDF extraction capitalisation differences (e.g. "TWIN TOWERS" vs "Twin Towers").
+    const { data: existingParent } = await supabase
       .from("properties")
       .select("id")
       .eq("billing_account_id", billingAccountId)
-      .eq("complex_name", complexName)
-      .eq("address", address)
+      .ilike("complex_name", rep.complex_name ?? "")
+      .ilike("address", rep.address ?? "")
       .is("unit_number", null)
       .maybeSingle();
 
     let parentId: string;
-    if (existing) {
-      parentId = existing.id;
+    if (existingParent) {
+      parentId = existingParent.id;
     } else {
-      // Pick a representative unit to seed the parent's suburb / erf_number.
-      const rep = unitProperties.find((p) => p.complex_name === complexName && p.address === address);
       const { data: created, error } = await supabase
         .from("properties")
         .insert({
           billing_account_id: billingAccountId,
-          address,
-          complex_name: complexName,
+          address: rep.address,
+          complex_name: rep.complex_name,
           unit_number: null,
-          erf_number: rep?.erf_number ?? null,
-          suburb: rep?.suburb ?? null,
-          postal_code: rep?.postal_code ?? null,
+          erf_number: rep.erf_number ?? null,
+          suburb: rep.suburb ?? null,
+          postal_code: rep.postal_code ?? null,
           status: "active",
           billing_frequency: "monthly",
         })
@@ -363,22 +388,11 @@ async function ensureParentProperties(
       parentId = created.id;
     }
 
-    // Link any unit properties that don't yet have this parent set.
-    const { data: units } = await supabase
+    // Link the parentless units to this parent.
+    await supabase
       .from("properties")
-      .select("id")
-      .eq("billing_account_id", billingAccountId)
-      .eq("complex_name", complexName)
-      .eq("address", address)
-      .not("unit_number", "is", null)
-      .or(`parent_property_id.is.null,parent_property_id.neq.${parentId}`);
-
-    if (units && units.length > 0) {
-      await supabase
-        .from("properties")
-        .update({ parent_property_id: parentId })
-        .in("id", units.map((u) => u.id));
-    }
+      .update({ parent_property_id: parentId })
+      .in("id", units.map((u) => u.id));
   }
 }
 

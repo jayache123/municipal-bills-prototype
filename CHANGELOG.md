@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-05-13 — Backfill ai_summary for 5 bills
+
+### Data
+- Added `scripts/backfill-ai-summary.ts` — calls Claude Opus with each bill's
+  structured line-item data and saves 2–5 analytical reviewer bullets to
+  `bills.ai_summary`. Idempotent: skips bills that already have a summary.
+- Ran backfill for all 5 bills that had no bullets: 3B Vredefort Aug 2025,
+  Rockaways Jan 2026, 19 Atholl Feb 2026, 19 Atholl Apr 2026, Rockaways May 2026.
+  All 6 bills now show reviewer bullets in the Bill Summary section.
+
+---
+
 ## 2026-05-13 — Full bill review: three accuracy fixes
 
 ### Fix — Data (DB updates)

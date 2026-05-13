@@ -58,6 +58,10 @@ export default async function PropertiesPage() {
         municipalities ( name )
       )
     `)
+    // Only show top-level records: standalone properties and complex parents.
+    // Child unit records (parent_property_id IS NOT NULL) are visible via the
+    // "Units" section on each parent's detail page.
+    .is("parent_property_id", null)
     .order("address", { ascending: true });
 
   if (error) {

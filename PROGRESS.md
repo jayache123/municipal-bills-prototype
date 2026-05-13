@@ -3,20 +3,43 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** (pending) — feat: period filter on dashboard and bills list
+**Last commit:** 1c96fdb — feat: make entire rows clickable instead of View → links
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
 ---
 
-## Current phase: "Period filtering + UI polish"
+## Current phase: "UI polish + data quality"
 
 ### Status
 
+- [x] **Clickable rows** — Every bill and property row is now fully clickable (no "View →" link)
+  - Dashboard rows: wrapped in `<Link>` directly (div-based layout)
+  - Tables (bills list, properties list, property detail units + bills): `position:relative` on `<tr>` + `absolute inset-0` `<Link>` in first cell; no client JS needed
+  - Trailing empty column and "View →" cells removed from all tables
+
+- [x] **Dashboard period selector** — Replaced simple ‹ › nav with single-row multi-mode selector
+  - `src/components/dashboard-period-selector.tsx` — "use client" component
+  - Row of pills: `[All]` `[2024]` `[2025]` `[2026]` | `‹` `[Apr 2026]` `[May 2026]` `[Jun 2026]` `›`
+  - Dashboard handles three modes: month (`YYYY-MM`), year (`YYYY`), all-time (`all`)
+  - Stat cards filter accordingly; review queue and recent bills remain period-agnostic
+  - Fixed "All" button bug: now navigates to `?period=all` explicitly instead of stripping params
+
 - [x] **Period filter** — Dashboard and bills list filterable by `?period=YYYY-MM`
-  - `PeriodSelector` client component: ‹ Month Year › nav, disabled at current month, "All periods" link
-  - Dashboard defaults to current month; stat cards filtered by `summary_month`; review queue and recent bills are period-agnostic
-  - Bills list: optional period filter; empty state message adapts; "All periods" clears filter
+  - `PeriodSelector` client component on bills list: ‹ Month Year › nav + "All periods" link
+  - Dashboard defaults to current month; bills list defaults to all periods
+
+- [x] **Property hierarchy display** — Child unit records hidden from lists and counts
+  - Properties list: `.is("parent_property_id", null)` filter — shows 4 top-level properties only
+  - Dashboard property count: same filter — shows 4, not 11
+  - Child units still accessible via "Units" section on parent property detail page
+
+- [x] **DB data quality fixes**
+  - `primary_property_id` on all bills re-pointed to top-level parent records (was pointing to child units)
+  - Twin Towers bill (October 2024) extracted, saved, and approved — 3 rates line items, 97/100 confidence
+  - `ensureParentProperties()` bug fixed: now looks up units by `unit_number` (DB-reliable) rather than
+    extracted complex_name/address (case-sensitive mismatch caused duplicate parent + mis-parented unit)
+  - New utility scripts: `scripts/db-audit.ts`, `scripts/fix-bill-property-links.ts`, `scripts/fix-twin-towers-save-mess.ts`
 
 - [x] **Step 13** — Section-level extraction + summary_month + ai_summary + parent properties
   - Extraction prompt rewritten: one row per utility section (not per sub-charge)

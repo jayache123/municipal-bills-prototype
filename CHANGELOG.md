@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-05-13 — UI polish + data quality
+
+### UI
+- All bill and property rows are now fully clickable — removed "View →" links everywhere.
+  Dashboard rows: `<Link>` wraps the flex row. Tables: `position:relative` on `<tr>` with an
+  `absolute inset-0` `<Link>` stretched across the full row. No client JS required.
+- Dashboard period selector redesigned as a single slim row:
+  `[All]` `[2024]` `[2025]` `[2026]` | `‹` `[Apr 2026]` `[May 2026]` `[Jun 2026]` `›`
+  Dashboard stat cards now respond to three modes: specific month, full year, or all time.
+- Properties list and dashboard property count now filter to top-level records only
+  (`parent_property_id IS NULL`), showing 4 properties instead of 11.
+
+### Data quality
+- `primary_property_id` on all bills corrected to point to top-level parent complex records
+  (Rockaways ×2, 3B Vredefort, Twin Towers) — previously pointed to child unit rows.
+- Twin Towers — October 2024 bill extracted and saved: 3 rates line items, 97/100 confidence,
+  auto-approved. Now 6 bills total in the system.
+- Bug fixed in `ensureParentProperties()` (`src/lib/billing/save.ts`): old code searched for
+  existing parents by extracted complex_name/address (case-sensitive — failed when PDF had
+  all-caps values), creating duplicate parent records and mis-parenting unrelated units.
+  New logic: look up units by `billing_account_id + unit_number` (DB-reliable); skip any that
+  already have a `parent_property_id`; use `.ilike()` for case-insensitive parent lookup.
+
+### Maintenance scripts added
+- `scripts/db-audit.ts` — prints full property hierarchy and bill → property linkage
+- `scripts/fix-bill-property-links.ts` — re-points bills from child units to parent records
+- `scripts/fix-twin-towers-save-mess.ts` — one-time cleanup for the duplicate parent incident
+
+---
+
 ## 2026-05-13 — Period filter: dashboard + bills list
 
 ### UI

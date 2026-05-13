@@ -61,6 +61,8 @@ type LineItem = {
   closing_meter_reading: number | null;
   reading_type: string | null;
   notes: string | null;
+  property_id: string | null;
+  property: { unit_number: string | null } | null;
 };
 
 type FieldError = {
@@ -103,6 +105,22 @@ const CATEGORY_COLORS: Record<string, string> = {
   other:                "bg-zinc-100  text-zinc-500",
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  rates:                "Property Rates",
+  electricity:          "Electricity",
+  water:                "Water",
+  refuse:               "Refuse",
+  sewerage:             "Sewerage",
+  improvement_district: "Improvement District (CID)",
+  sundry:               "Sundries",
+  other:                "Other",
+};
+
+const CATEGORY_ORDER = [
+  "rates", "electricity", "water", "refuse", "sewerage",
+  "improvement_district", "sundry", "other",
+];
+
 // ── Formatters ────────────────────────────────────────────────────────────────
 
 function formatDate(date: string | null): string {
@@ -113,6 +131,23 @@ function formatDate(date: string | null): string {
     month: "short",
     year: "numeric",
   });
+}
+
+function formatShortDate(date: string | null): string {
+  if (!date) return "—";
+  const [y, m, d] = date.split("-");
+  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString("en-ZA", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatMonth(date: string | null): string {
+  if (!date) return "—";
+  const [y, m] = date.split("-").map(Number);
+  const month = new Date(y, m - 1, 1).toLocaleDateString("en-ZA", { month: "short" });
+  return `${month}-${String(y).slice(-2)}`;
 }
 
 function formatPeriod(start: string | null, end: string | null): string {
@@ -127,15 +162,13 @@ function formatPeriod(start: string | null, end: string | null): string {
   return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
 }
 
-function formatZAR(amount: number | null | undefined, opts?: { signed?: boolean }): string {
+function formatZAR(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) return "—";
   const val = Number(amount);
-  const formatted = `R ${Math.abs(val).toLocaleString("en-ZA", {
+  return `R ${Math.abs(val).toLocaleString("en-ZA", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
-  if (opts?.signed && val < 0) return `−${formatted}`;
-  return formatted;
 }
 
 function formatTimestamp(ts: string | null): string {
@@ -147,9 +180,12 @@ function formatTimestamp(ts: string | null): string {
   });
 }
 
-function formatUsage(value: number | null, unit: string | null): string {
-  if (value === null) return "—";
-  return `${Number(value).toLocaleString("en-ZA", { maximumFractionDigits: 4 })}${unit ? ` ${unit}` : ""}`;
+function computeDays(start: string | null, end: string | null): string {
+  if (!start || !end) return "—";
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  const d = Math.round((e - s) / 86_400_000);
+  return d > 0 ? String(d) : "—";
 }
 
 // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -204,7 +240,7 @@ export default async function BillDetailPage({
 
     supabase
       .from("bill_line_items")
-      .select("*")
+      .select("*, property:properties(unit_number)")
       .eq("bill_id", id)
       .order("line_order", { ascending: true }),
 
@@ -218,9 +254,9 @@ export default async function BillDetailPage({
 
   if (billRes.error || !billRes.data) notFound();
 
-  const bill = billRes.data as unknown as Bill;
+  const bill      = billRes.data as unknown as Bill;
   const lineItems = (lineItemsRes.data ?? []) as unknown as LineItem[];
-  const errors = (errorsRes.data ?? []) as unknown as FieldError[];
+  const errors    = (errorsRes.data    ?? []) as unknown as FieldError[];
 
   const statusCfg = STATUS_CONFIG[bill.status] ?? {
     label: bill.status,
@@ -229,6 +265,25 @@ export default async function BillDetailPage({
   const canApprove = bill.status === "pending_review";
   const acct = bill.billing_accounts;
   const prop = bill.primary_property;
+
+  // ── Financial summary: sum amounts per utility_category ───────────────────
+
+  const categoryAmounts = new Map<string, number>();
+  for (const item of lineItems) {
+    if (item.line_type === "informational") continue;
+    if (item.amount === null) continue;
+    const cat = item.utility_category;
+    categoryAmounts.set(cat, (categoryAmounts.get(cat) ?? 0) + Number(item.amount));
+  }
+  const summaryRows = CATEGORY_ORDER
+    .filter((cat) => categoryAmounts.has(cat))
+    .map((cat) => ({
+      cat,
+      label: CATEGORY_LABELS[cat] ?? cat,
+      amount: categoryAmounts.get(cat)!,
+    }));
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -255,7 +310,6 @@ export default async function BillDetailPage({
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-3">
             {canApprove && (
               <>
@@ -276,24 +330,9 @@ export default async function BillDetailPage({
           </div>
         </div>
 
-        {/* ── AI Summary ── */}
-        {bill.ai_summary && bill.ai_summary.length > 0 && (
-          <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
-            <h2 className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">
-              Bill Summary
-            </h2>
-            <ul className="space-y-1.5">
-              {bill.ai_summary.map((bullet, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-blue-900">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
-                  {bullet}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* ── Bill info ── */}
+        {/* ══════════════════════════════════════════════════════════════════════
+            SECTION 1 — Bill Information
+        ══════════════════════════════════════════════════════════════════════ */}
         <SectionCard title="Bill Information">
           <InfoGrid
             items={[
@@ -318,9 +357,10 @@ export default async function BillDetailPage({
               {
                 label: "Erf / Unit",
                 value: prop
-                  ? [prop.erf_number && `Erf ${prop.erf_number}`, prop.unit_number && `Unit ${prop.unit_number}`]
-                      .filter(Boolean)
-                      .join(" · ") || "—"
+                  ? [
+                      prop.erf_number  && `Erf ${prop.erf_number}`,
+                      prop.unit_number && `Unit ${prop.unit_number}`,
+                    ].filter(Boolean).join(" · ") || "—"
                   : "—",
               },
               {
@@ -337,110 +377,164 @@ export default async function BillDetailPage({
           />
         </SectionCard>
 
-        {/* ── Financial summary ── */}
+        {/* ══════════════════════════════════════════════════════════════════════
+            SECTION 2 — Financial Summary (item → amount only)
+        ══════════════════════════════════════════════════════════════════════ */}
         <SectionCard title="Financial Summary">
-          <div className="space-y-2 text-sm">
-            {[
-              { label: "Previous balance",            value: bill.previous_balance,             muted: true },
-              { label: "Payments received",            value: -(bill.payments_received ?? 0),    muted: true },
-              { label: "Current charges",              value: bill.current_amount_due,            muted: false },
-              { label: "VAT",                          value: bill.total_vat,                    muted: true },
-            ].map(({ label, value, muted }) =>
-              value !== null && value !== undefined ? (
-                <div key={label} className="flex justify-between">
-                  <span className={muted ? "text-zinc-500" : "font-medium text-zinc-700"}>{label}</span>
-                  <span className={`font-mono ${Number(value) < 0 ? "text-green-600" : muted ? "text-zinc-500" : "text-zinc-800"}`}>
-                    {Number(value) < 0 ? `−R ${Math.abs(Number(value)).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}` : formatZAR(Number(value))}
-                  </span>
-                </div>
-              ) : null,
+          <div className="w-full max-w-sm space-y-1 text-sm">
+            {summaryRows.map(({ cat, label, amount }) => (
+              <div key={cat} className="flex items-center justify-between gap-4 py-1">
+                <span className="text-zinc-600">{label}</span>
+                <span className={`font-mono tabular-nums ${amount < 0 ? "text-green-600" : "text-zinc-800"}`}>
+                  {amount < 0
+                    ? `−R ${Math.abs(amount).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                    : formatZAR(amount)}
+                </span>
+              </div>
+            ))}
+
+            {/* VAT row */}
+            {bill.total_vat > 0 && (
+              <div className="flex items-center justify-between gap-4 py-1">
+                <span className="text-zinc-500 italic">VAT @ 15%</span>
+                <span className="font-mono tabular-nums text-zinc-500">
+                  {formatZAR(bill.total_vat)}
+                </span>
+              </div>
             )}
-            <div className="border-t border-zinc-200 pt-2 mt-2 flex justify-between">
-              <span className="font-semibold text-zinc-900">Total amount due</span>
-              <span className="font-mono font-bold text-zinc-900">{formatZAR(bill.total_amount_due)}</span>
+
+            {/* Total */}
+            <div className="flex items-center justify-between gap-4 border-t border-zinc-200 pt-2 mt-1">
+              <span className="font-semibold text-zinc-900">Total Amount Due</span>
+              <span className="font-mono font-bold text-zinc-900">
+                {formatZAR(bill.total_amount_due)}
+              </span>
             </div>
           </div>
         </SectionCard>
 
-        {/* ── Errors & warnings ── */}
-        {errors.length > 0 && (
-          <SectionCard title={`Issues (${errors.length})`}>
-            <div className="space-y-3">
-              {errors.map((err) => {
-                const sev = SEVERITY_CONFIG[err.severity] ?? {
-                  label: err.severity,
-                  className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20",
-                };
-                return (
-                  <div key={err.id} className="flex items-start gap-3">
-                    <span className={`mt-0.5 shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${sev.className}`}>
-                      {sev.label}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm text-zinc-800">{err.message ?? err.rule_name}</p>
-                      {err.extracted_value && (
-                        <p className="mt-0.5 font-mono text-xs text-zinc-400">
-                          Extracted value: {err.extracted_value}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        {/* ══════════════════════════════════════════════════════════════════════
+            SECTION 3 — Bill Summary (AI bullets + issues)
+        ══════════════════════════════════════════════════════════════════════ */}
+        {((bill.ai_summary && bill.ai_summary.length > 0) || errors.length > 0) && (
+          <SectionCard title={`Bill Summary${errors.length > 0 ? ` · ${errors.length} Issue${errors.length !== 1 ? "s" : ""}` : ""}`}>
+            <div className="space-y-5">
+
+              {/* AI summary bullets */}
+              {bill.ai_summary && bill.ai_summary.length > 0 && (
+                <ul className="space-y-2">
+                  {bill.ai_summary.map((bullet, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-700">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-400" />
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Divider between AI bullets and errors (only if both present) */}
+              {bill.ai_summary && bill.ai_summary.length > 0 && errors.length > 0 && (
+                <hr className="border-zinc-100" />
+              )}
+
+              {/* Issues / field errors */}
+              {errors.length > 0 && (
+                <div className="space-y-3">
+                  {errors.map((err) => {
+                    const sev = SEVERITY_CONFIG[err.severity] ?? {
+                      label: err.severity,
+                      className: "bg-zinc-100 text-zinc-500 ring-zinc-400/20",
+                    };
+                    return (
+                      <div key={err.id} className="flex items-start gap-3">
+                        <span className={`mt-0.5 shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ${sev.className}`}>
+                          {sev.label}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm text-zinc-800">{err.message ?? err.rule_name}</p>
+                          {err.extracted_value && (
+                            <p className="mt-0.5 font-mono text-xs text-zinc-400">
+                              Extracted value: {err.extracted_value}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
             </div>
           </SectionCard>
         )}
 
-        {/* ── Line items ── */}
-        <SectionCard title={`Line Items (${lineItems.length})`}>
+        {/* ══════════════════════════════════════════════════════════════════════
+            SECTION 4 — Detailed Line Breakdown
+        ══════════════════════════════════════════════════════════════════════ */}
+        <SectionCard title="Detailed Breakdown">
           {lineItems.length === 0 ? (
             <p className="text-sm text-zinc-400">No line items found.</p>
           ) : (
             <div className="overflow-x-auto -mx-5">
-              <table className="min-w-full">
+              <table className="min-w-full text-xs">
                 <thead>
-                  <tr className="border-b border-zinc-100">
-                    {["#", "Category", "Description", "Breakdown", "Period", "Usage", "Amount"].map((h, i) => (
-                      <th
-                        key={h}
-                        scope="col"
-                        className={`px-5 py-2 text-xs font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap ${
-                          i >= 5 ? "text-right" : "text-left"
-                        }`}
-                      >
-                        {h}
-                      </th>
-                    ))}
+                  <tr className="border-b border-zinc-200 bg-zinc-50">
+                    <th className="px-5 py-2.5 text-left font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Category</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Item</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Month</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Amount (R)</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Days</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Reading</th>
+                    <th className="px-4 py-2.5 text-right font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Units Used</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">Start Date</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap">End Date</th>
+                    <th className="px-4 py-2.5 text-left font-medium text-zinc-500 uppercase tracking-wide min-w-[420px]">Notes (Tariffs &amp; Basis)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50">
-                  {lineItems.map((item) => {
-                    const isSubtotal     = item.line_type === "subtotal";
-                    const isInformational = item.line_type === "informational";
-                    const isCredit       = item.line_type === "rebate" || item.line_type === "reversal";
-                    const catColor       = CATEGORY_COLORS[item.utility_category] ?? "bg-zinc-100 text-zinc-500";
+                <tbody>
+                  {lineItems.map((item, idx) => {
+                    const prevCat     = idx > 0 ? lineItems[idx - 1].utility_category : null;
+                    const catChanged  = prevCat !== null && prevCat !== item.utility_category;
+                    const isCredit    = item.line_type === "rebate" || item.line_type === "reversal";
+                    const isSubtotal  = item.line_type === "subtotal";
+                    const catColor    = CATEGORY_COLORS[item.utility_category] ?? "bg-zinc-100 text-zinc-500";
+                    const catLabel    = CATEGORY_LABELS[item.utility_category]
+                                        ?? item.utility_category.replace(/_/g, " ");
+
+                    const amountVal   = item.amount !== null ? Number(item.amount) : null;
+                    const isNegative  = amountVal !== null && amountVal < 0;
+
+                    // Build item label: base description + unit suffix if applicable.
+                    const baseLabel   = item.section_label ?? item.description ?? catLabel;
+                    const unitSuffix  = item.property?.unit_number
+                                        ? ` — Unit ${item.property.unit_number}`
+                                        : "";
+                    const itemLabel   = baseLabel + unitSuffix;
+
+                    // Notes: split on "; " to render each clause on its own line.
+                    const noteParts   = item.notes
+                                        ? item.notes.split(/;\s*/).map(p => p.trim()).filter(Boolean)
+                                        : [];
 
                     return (
                       <tr
                         key={item.id}
-                        className={`${isSubtotal ? "bg-zinc-50" : ""} ${isInformational ? "opacity-60" : ""}`}
+                        className={[
+                          catChanged ? "border-t-2 border-zinc-200" : "border-t border-zinc-50",
+                          isSubtotal ? "bg-zinc-50" : "",
+                        ].join(" ")}
                       >
-                        {/* Line order */}
-                        <td className="px-5 py-2 text-xs text-zinc-300 tabular-nums w-8">
-                          {item.line_order}
-                        </td>
-
-                        {/* Category badge */}
-                        <td className="px-5 py-2 whitespace-nowrap">
+                        {/* Category badge — shown on every row */}
+                        <td className="px-5 py-3 align-top whitespace-nowrap">
                           <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium ${catColor}`}>
-                            {item.utility_category.replace(/_/g, " ")}
+                            {catLabel}
                           </span>
                         </td>
 
-                        {/* Description */}
-                        <td className="px-5 py-2 text-sm text-zinc-700 max-w-xs">
+                        {/* Item description + optional unit */}
+                        <td className="px-4 py-3 align-top text-zinc-700 whitespace-nowrap">
                           <span className={isSubtotal ? "font-semibold" : ""}>
-                            {item.description ?? item.section_label ?? "—"}
+                            {itemLabel}
                           </span>
                           {isCredit && (
                             <span className="ml-1.5 inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-green-600/20">
@@ -449,36 +543,67 @@ export default async function BillDetailPage({
                           )}
                         </td>
 
-                        {/* Breakdown (notes) */}
-                        <td className="px-5 py-2 text-xs text-zinc-500 max-w-xs">
-                          {item.notes ?? "—"}
-                        </td>
-
-                        {/* Period */}
-                        <td className="px-5 py-2 text-xs text-zinc-400 whitespace-nowrap">
+                        {/* Month */}
+                        <td className="px-4 py-3 align-top text-zinc-500 whitespace-nowrap">
                           {item.period_start
-                            ? formatPeriod(item.period_start, item.period_end)
-                            : "—"}
-                        </td>
-
-                        {/* Usage */}
-                        <td className="px-5 py-2 text-xs text-zinc-500 whitespace-nowrap text-right tabular-nums">
-                          {formatUsage(item.usage_value, item.usage_unit)}
+                            ? formatMonth(item.period_start)
+                            : formatMonth(bill.summary_month)}
                         </td>
 
                         {/* Amount */}
-                        <td
-                          className={`px-5 py-2 text-sm font-mono whitespace-nowrap text-right tabular-nums ${
-                            isCredit || (item.amount !== null && Number(item.amount) < 0)
-                              ? "text-green-600"
-                              : isSubtotal
-                                ? "font-semibold text-zinc-900"
-                                : "text-zinc-700"
-                          }`}
-                        >
-                          {item.amount !== null
-                            ? `${Number(item.amount) < 0 ? "−" : ""}R ${Math.abs(Number(item.amount)).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                        <td className={`px-4 py-3 align-top text-right tabular-nums font-mono ${
+                          isCredit || isNegative
+                            ? "text-green-600"
+                            : isSubtotal
+                              ? "font-semibold text-zinc-900"
+                              : "text-zinc-700"
+                        }`}>
+                          {amountVal !== null
+                            ? `${isNegative ? "−" : ""}R ${Math.abs(amountVal).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
                             : "—"}
+                        </td>
+
+                        {/* Days */}
+                        <td className="px-4 py-3 align-top text-right text-zinc-400 tabular-nums">
+                          {computeDays(item.period_start, item.period_end)}
+                        </td>
+
+                        {/* Reading type */}
+                        <td className="px-4 py-3 align-top text-zinc-500 whitespace-nowrap capitalize">
+                          {item.reading_type ?? "—"}
+                        </td>
+
+                        {/* Units used */}
+                        <td className="px-4 py-3 align-top text-right text-zinc-500 tabular-nums whitespace-nowrap">
+                          {item.usage_value !== null
+                            ? `${Number(item.usage_value).toLocaleString("en-ZA", { maximumFractionDigits: 3 })}${item.usage_unit ? ` ${item.usage_unit}` : ""}`
+                            : "—"}
+                        </td>
+
+                        {/* Start date */}
+                        <td className="px-4 py-3 align-top text-zinc-400 whitespace-nowrap">
+                          {formatShortDate(item.period_start)}
+                        </td>
+
+                        {/* End date */}
+                        <td className="px-4 py-3 align-top text-zinc-400 whitespace-nowrap">
+                          {formatShortDate(item.period_end)}
+                        </td>
+
+                        {/* Notes — wide column, each clause on its own line */}
+                        <td className="px-4 py-3 align-top">
+                          {noteParts.length === 0 ? (
+                            <span className="text-zinc-300">—</span>
+                          ) : (
+                            <ul className="space-y-1">
+                              {noteParts.map((part, i) => (
+                                <li key={i} className="flex items-baseline gap-1.5 text-xs text-zinc-400 leading-relaxed">
+                                  <span className="shrink-0 text-zinc-300">›</span>
+                                  {part}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </td>
                       </tr>
                     );

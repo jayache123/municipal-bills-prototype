@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-05-13 — Bill detail page redesign
+
+### UI
+- `src/app/bills/[id]/page.tsx` — full layout restructure, now standardised across all bills:
+  1. **Bill Information** — moved to top; municipality, account, property, erf/unit, invoice, period, dates
+  2. **Financial Summary** — category-level amount table (rates, electricity, water, etc. summed from line items); VAT row from `bill.total_vat`; bold total from `bill.total_amount_due`
+  3. **Bill Summary** — AI reviewer bullets and field errors combined into one card (previously the blue box was separate and errors were in their own card)
+  4. **Detailed Breakdown** — full table: Category (coloured pill on every row) | Item (with unit suffix: "Property Rates — Unit 65") | Month | Amount (R) | Days | Reading | Units Used | Start Date | End Date | Notes (420px wide column; semicolon-delimited clauses rendered as stacked bullet lines)
+- Line items query now joins `properties(unit_number)` so multi-unit bills show the unit in the Item column
+- `formatShortDate()` and `formatMonth()` helpers added for the new table columns
+- `computeDays()` helper computes billing days from period_start → period_end
+
+---
+
 ## 2026-05-13 — Property filter dropdown
 
 ### UI

@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** feat: add property filter dropdown to dashboard and bills list
+**Last commit:** feat: redesign bill detail page layout
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
@@ -12,6 +12,13 @@ Where we are right now and what's next. Updated on every commit.
 ## Current phase: "UI polish + data quality"
 
 ### Status
+
+- [x] **Bill detail page redesign** — New four-section layout standardised across all bills
+  - Section 1: Bill Information (municipality, account, property, invoice, period, dates)
+  - Section 2: Financial Summary — category-level amounts (rates, electricity, water, etc.) summed from line items, VAT row, total
+  - Section 3: Bill Summary — AI reviewer bullets + any issues/field errors combined into one card
+  - Section 4: Detailed Breakdown — full table matching the Excel output format: Category badge (every row) | Item (with unit suffix e.g. "Property Rates — Unit 65") | Month | Amount (R) | Days | Reading | Units Used | Start Date | End Date | Notes (Tariffs & Basis, 420px wide column, semicolon-split into bullet lines)
+  - Line items query extended to join `properties(unit_number)` so unit info appears in the Item column for multi-unit bills
 
 - [x] **Property filter dropdown** — Searchable property dropdown alongside the period selector on dashboard and bills list
   - `src/components/property-filter.tsx` — "use client" searchable dropdown

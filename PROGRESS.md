@@ -3,15 +3,20 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** (pending) — feat: section-level extraction, summary_month, ai_summary, parent properties
+**Last commit:** (pending) — feat: period filter on dashboard and bills list
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
 ---
 
-## Current phase: "Extraction quality + data model improvements"
+## Current phase: "Period filtering + UI polish"
 
 ### Status
+
+- [x] **Period filter** — Dashboard and bills list filterable by `?period=YYYY-MM`
+  - `PeriodSelector` client component: ‹ Month Year › nav, disabled at current month, "All periods" link
+  - Dashboard defaults to current month; stat cards filtered by `summary_month`; review queue and recent bills are period-agnostic
+  - Bills list: optional period filter; empty state message adapts; "All periods" clears filter
 
 - [x] **Step 13** — Section-level extraction + summary_month + ai_summary + parent properties
   - Extraction prompt rewritten: one row per utility section (not per sub-charge)

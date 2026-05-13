@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { PeriodSelector } from "@/components/period-selector";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -134,16 +135,38 @@ function BillListRow({ bill, linkLabel = "View →" }: { bill: BillRow; linkLabe
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const { period } = await searchParams;
+
+  // Default to the current calendar month if no period is in the URL.
+  const now = new Date();
+  const activePeriod =
+    period ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // Human-readable label for the active period (used in subtitle).
+  const [selYear, selMonth] = activePeriod.split("-").map(Number);
+  const periodLabel = new Date(selYear, selMonth - 1, 1).toLocaleDateString("en-ZA", {
+    month: "long",
+    year: "numeric",
+  });
+
+  // Supabase DATE value: "2026-05" → "2026-05-01"
+  const summaryMonthFilter = `${activePeriod}-01`;
+
   const supabase = getSupabaseServiceClient();
 
   const [summaryRes, queueRes, recentRes, propertiesRes] = await Promise.all([
-    // All bills — just status + amount for aggregate stats
+    // Summary stats — filtered by the selected period.
     supabase
       .from("bills")
-      .select("status, total_amount_due"),
+      .select("status, total_amount_due")
+      .eq("summary_month", summaryMonthFilter),
 
-    // Review queue — pending_review bills with joins
+    // Review queue — ALL pending_review bills regardless of period (it's an action queue).
     supabase
       .from("bills")
       .select(`
@@ -154,7 +177,7 @@ export default async function DashboardPage() {
       .eq("status", "pending_review")
       .order("created_at", { ascending: false }),
 
-    // Recent bills — last 5 of any status
+    // Recent bills — last 5 of any status, period-agnostic.
     supabase
       .from("bills")
       .select(`
@@ -165,7 +188,7 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false })
       .limit(5),
 
-    // Property count
+    // Property count — period-agnostic.
     supabase
       .from("properties")
       .select("id"),
@@ -173,13 +196,13 @@ export default async function DashboardPage() {
 
   // ── Compute aggregates ───────────────────────────────────────────────────
 
-  const summaryBills = (summaryRes.data ?? []) as BillSummary[];
-  const queueBills   = (queueRes.data   ?? []) as unknown as BillRow[];
-  const recentBills  = (recentRes.data  ?? []) as unknown as BillRow[];
+  const summaryBills  = (summaryRes.data  ?? []) as BillSummary[];
+  const queueBills    = (queueRes.data    ?? []) as unknown as BillRow[];
+  const recentBills   = (recentRes.data   ?? []) as unknown as BillRow[];
   const propertyCount = (propertiesRes.data ?? []).length;
 
-  const pendingReviewCount  = summaryBills.filter(b => b.status === "pending_review").length;
-  const hardRejectedCount   = summaryBills.filter(b => b.status === "hard_rejected").length;
+  const pendingReviewCount = summaryBills.filter(b => b.status === "pending_review").length;
+  const hardRejectedCount  = summaryBills.filter(b => b.status === "hard_rejected").length;
 
   const amountPending = summaryBills
     .filter(b => b.status === "pending_review")
@@ -194,17 +217,20 @@ export default async function DashboardPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-semibold text-zinc-900">Dashboard</h1>
-            <p className="mt-0.5 text-sm text-zinc-500">Municipal billing overview</p>
+            <p className="mt-0.5 text-sm text-zinc-500">{periodLabel}</p>
           </div>
-          <Link
-            href="/upload"
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
-          >
-            + Upload Bill
-          </Link>
+          <div className="flex items-center gap-3 flex-wrap">
+            <PeriodSelector selected={activePeriod} showAll={false} />
+            <Link
+              href="/upload"
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
+            >
+              + Upload Bill
+            </Link>
+          </div>
         </div>
 
         {/* ── Summary cards ── */}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import { PeriodSelector } from "@/components/period-selector";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ function formatDate(date: string | null): string {
 
 function formatZAR(amount: number | null): string {
   if (amount === null || amount === undefined) return "—";
-  return `R ${Number(amount).toLocaleString("en-ZA", {
+  return `R ${Number(amount).toLocaleString("en-ZA", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -76,10 +77,16 @@ function formatZAR(amount: number | null): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function BillsPage() {
+export default async function BillsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string }>;
+}) {
+  const { period } = await searchParams;
   const supabase = getSupabaseServiceClient();
 
-  const { data, error } = await supabase
+  // Build query — filter by summary_month only when a period is selected.
+  let query = supabase
     .from("bills")
     .select(`
       id,
@@ -92,6 +99,13 @@ export default async function BillsPage() {
       primary_property:properties!primary_property_id ( address, suburb )
     `)
     .order("created_at", { ascending: false });
+
+  if (period) {
+    // "2026-05" → "2026-05-01" (matches the DATE stored in summary_month)
+    query = query.eq("summary_month", `${period}-01`);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return (
@@ -108,32 +122,42 @@ export default async function BillsPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
           <div>
             <h1 className="text-xl font-semibold text-zinc-900">Bills</h1>
             <p className="mt-0.5 text-sm text-zinc-500">
-              {bills.length} bill{bills.length !== 1 ? "s" : ""} processed
+              {bills.length} bill{bills.length !== 1 ? "s" : ""}
+              {period ? " this period" : " total"}
             </p>
           </div>
-          <Link
-            href="/upload"
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
-          >
-            + Upload Bill
-          </Link>
+          <div className="flex items-center gap-3 flex-wrap">
+            <PeriodSelector selected={period ?? null} showAll={true} />
+            <Link
+              href="/upload"
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
+            >
+              + Upload Bill
+            </Link>
+          </div>
         </div>
 
         {/* ── Empty state ── */}
         {bills.length === 0 && (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-8 py-16 text-center">
-            <p className="text-sm font-medium text-zinc-500">No bills yet</p>
-            <p className="mt-1 text-xs text-zinc-400">Upload a PDF to get started</p>
-            <Link
-              href="/upload"
-              className="mt-5 inline-block rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
-            >
-              Upload Bill
-            </Link>
+            <p className="text-sm font-medium text-zinc-500">
+              {period ? "No bills for this period" : "No bills yet"}
+            </p>
+            <p className="mt-1 text-xs text-zinc-400">
+              {period ? "Try a different month or clear the filter" : "Upload a PDF to get started"}
+            </p>
+            {!period && (
+              <Link
+                href="/upload"
+                className="mt-5 inline-block rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
+              >
+                Upload Bill
+              </Link>
+            )}
           </div>
         )}
 

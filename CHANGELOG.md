@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-13 — Period filter: dashboard + bills list
+
+### UI
+- `src/components/period-selector.tsx` — new "use client" component: ‹ Month Year › navigation
+  with disabled Next at current month, "All periods" escape hatch, uses `usePathname()` for hrefs
+- `src/app/page.tsx` — dashboard now accepts `?period=YYYY-MM` searchParam; defaults to current
+  month; stat cards (Needs Review, Amount Pending, Amount Approved) filtered by `summary_month`;
+  period label shown in subtitle; PeriodSelector in header (no "All periods" — dashboard always
+  shows a specific month); review queue and recent bills remain period-agnostic
+- `src/app/bills/page.tsx` — bills list now accepts `?period=YYYY-MM`; filters table by
+  `summary_month` when period is set; shows "All periods" PeriodSelector so filter can be cleared;
+  empty state message adjusts for "no bills for this period" vs "no bills yet"
+
+---
+
 ## 2026-05-13 — Step 13: Section-level extraction, summary_month, ai_summary, parent properties
 
 ### Data model

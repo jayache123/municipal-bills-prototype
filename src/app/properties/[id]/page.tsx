@@ -16,12 +16,24 @@ type Property = {
   billing_frequency: string;
   notes: string | null;
   created_at: string;
+  parent_property_id: string | null;
+  municipal_valuation: number | null;
   billing_accounts: {
     account_number: string;
     customer_name: string | null;
     business_partner_number: string | null;
     municipalities: { name: string } | null;
   } | null;
+};
+
+type ChildUnit = {
+  id: string;
+  unit_number: string | null;
+  erf_number: string | null;
+  address: string;
+  suburb: string | null;
+  status: string;
+  municipal_valuation: number | null;
 };
 
 type BillRow = {
@@ -128,8 +140,8 @@ export default async function PropertyDetailPage({
   const { id } = await params;
   const supabase = getSupabaseServiceClient();
 
-  // Fetch property and its bills in parallel.
-  const [propRes, billsRes] = await Promise.all([
+  // Fetch property, bills, and child units in parallel.
+  const [propRes, billsRes, childUnitsRes] = await Promise.all([
     supabase
       .from("properties")
       .select(`
@@ -166,12 +178,20 @@ export default async function PropertyDetailPage({
       `)
       .eq("primary_property_id", id)
       .order("billing_period_start", { ascending: false }),
+
+    // Child units linked to this property as parent.
+    supabase
+      .from("properties")
+      .select("id, unit_number, erf_number, address, suburb, status, municipal_valuation")
+      .eq("parent_property_id", id)
+      .order("unit_number", { ascending: true }),
   ]);
 
   if (propRes.error || !propRes.data) notFound();
 
   const prop = propRes.data as unknown as Property;
   const bills = (billsRes.data ?? []) as unknown as BillRow[];
+  const childUnits = (childUnitsRes.data ?? []) as unknown as ChildUnit[];
   const acct = prop.billing_accounts;
   const muni = acct?.municipalities;
 
@@ -224,6 +244,9 @@ export default async function PropertyDetailPage({
               { label: "Unit",                value: prop.unit_number },
               { label: "Erf Number",          value: prop.erf_number },
               { label: "Postal Code",         value: prop.postal_code },
+              { label: "Municipal Valuation",  value: prop.municipal_valuation
+                  ? `R ${Number(prop.municipal_valuation).toLocaleString("en-ZA")}`
+                  : null },
               { label: "Billing Frequency",   value: prop.billing_frequency
                   ? prop.billing_frequency.charAt(0).toUpperCase() + prop.billing_frequency.slice(1)
                   : null },
@@ -239,6 +262,57 @@ export default async function PropertyDetailPage({
             <p className="mt-5 text-sm text-zinc-500 border-t border-zinc-100 pt-4">{prop.notes}</p>
           )}
         </SectionCard>
+
+        {/* ── Units (only shown for parent properties) ── */}
+        {childUnits.length > 0 && (
+          <SectionCard title={`Units (${childUnits.length})`}>
+            <div className="overflow-x-auto -mx-5 px-5">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b border-zinc-100">
+                    {["Unit", "Erf", "Municipal Valuation", "Status", ""].map((h) => (
+                      <th
+                        key={h}
+                        scope="col"
+                        className="pb-3 text-left text-xs font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap pr-6 last:pr-0"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-50">
+                  {childUnits.map((unit) => (
+                    <tr key={unit.id} className="hover:bg-zinc-50/60 transition-colors">
+                      <td className="py-3 pr-6 text-sm font-medium text-zinc-800 whitespace-nowrap">
+                        Unit {unit.unit_number ?? "—"}
+                      </td>
+                      <td className="py-3 pr-6 text-sm text-zinc-500 whitespace-nowrap">
+                        {unit.erf_number ? `Erf ${unit.erf_number}` : "—"}
+                      </td>
+                      <td className="py-3 pr-6 text-sm text-zinc-700 font-mono whitespace-nowrap">
+                        {unit.municipal_valuation
+                          ? `R ${Number(unit.municipal_valuation).toLocaleString("en-ZA")}`
+                          : <span className="text-zinc-300">Not yet captured</span>}
+                      </td>
+                      <td className="py-3 pr-6 whitespace-nowrap">
+                        <StatusBadge status={unit.status} config={PROPERTY_STATUS_CONFIG} />
+                      </td>
+                      <td className="py-3 whitespace-nowrap text-right">
+                        <Link
+                          href={`/properties/${unit.id}`}
+                          className="text-xs font-medium text-zinc-400 hover:text-zinc-900 transition-colors"
+                        >
+                          View →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </SectionCard>
+        )}
 
         {/* ── Bills history ── */}
         <SectionCard title={`Bills (${bills.length})`}>

@@ -163,6 +163,36 @@ export async function saveExtractedBill(
 
   const primaryPropertyId = resolvePropertyId(args.match.primary_property);
 
+  // Build the line-order → property-decision map early (used in 4b, 4c, and 6).
+  const lipByLineOrder = new Map<number, PropertyDecision>();
+  for (const lip of args.match.line_item_properties) lipByLineOrder.set(lip.line_order, lip.decision);
+
+  // 4b. For multi-unit bills: ensure a parent property exists for the complex and
+  //     link each unit's parent_property_id to it. A multi-unit bill is detected
+  //     when the same billing account has multiple properties with unit numbers
+  //     under the same complex_name + address.
+  if (billingAccountId) {
+    await ensureParentProperties(supabase, billingAccountId, bill.line_items
+      .filter((li) => li.property?.unit_number)
+      .map((li) => li.property!)
+    );
+  }
+
+  // 4c. Update municipal_valuation on property records from rates line items.
+  //     The base_value on a rates line is the rateable valuation for that property.
+  for (const item of bill.line_items) {
+    if (item.utility_category !== "rates" && item.utility_category !== "improvement_district") continue;
+    if (!item.base_value) continue;
+    const propertyId = resolvePropertyId(
+      lipByLineOrder.get(item.line_order) ?? args.match.primary_property
+    );
+    if (!propertyId) continue;
+    await supabase
+      .from("properties")
+      .update({ municipal_valuation: item.base_value })
+      .eq("id", propertyId);
+  }
+
   // 5. Insert the bill row.
   const { data: billRow, error: billError } = await supabase
     .from("bills")
@@ -170,6 +200,7 @@ export async function saveExtractedBill(
       billing_account_id: billingAccountId,
       primary_property_id: primaryPropertyId,
       tax_invoice_number: bill.tax_invoice_number,
+      summary_month: bill.summary_month,
       billing_period_start: bill.billing_period_start,
       billing_period_end: bill.billing_period_end,
       issue_date: bill.issue_date,
@@ -186,6 +217,7 @@ export async function saveExtractedBill(
       confidence_score: bill.overall_confidence,
       extraction_pass_count: 1,
       extraction_model: args.extractionModel,
+      ai_summary: bill.ai_summary ?? null,
       status: "pending_review",
     })
     .select("id")
@@ -194,9 +226,6 @@ export async function saveExtractedBill(
   const billId = billRow.id;
 
   // 6. Batch-insert line items.
-  const lipByLineOrder = new Map<number, PropertyDecision>();
-  for (const lip of args.match.line_item_properties) lipByLineOrder.set(lip.line_order, lip.decision);
-
   const lineItemRows = bill.line_items.map((item) => ({
     bill_id: billId,
     property_id: resolvePropertyId(lipByLineOrder.get(item.line_order) ?? null),
@@ -215,7 +244,6 @@ export async function saveExtractedBill(
     usage_unit: item.usage_unit,
     rate: item.rate,
     rate_unit: item.rate_unit,
-    tariff_tier: item.tariff_tier,
     base_value: item.base_value,
     meter_number: item.meter_number,
     opening_meter_reading: item.opening_meter_reading,
@@ -274,6 +302,85 @@ type WarningRow = {
   extracted_value: string | null;
   message: string;
 };
+
+/**
+ * For multi-unit bills: ensure a parent property record exists for each complex
+ * and that all units have their parent_property_id set.
+ *
+ * A "parent" property is a record with unit_number = null for the same
+ * complex_name + address + billing_account. Units are linked to it so the UI
+ * can group them under a single property card.
+ */
+async function ensureParentProperties(
+  supabase: SupabaseClient,
+  billingAccountId: string,
+  unitProperties: ExtractedProperty[],
+): Promise<void> {
+  if (unitProperties.length === 0) return;
+
+  // Group by complex_name + address to find distinct complexes.
+  const complexKeys = new Set(
+    unitProperties
+      .filter((p) => p.complex_name && p.address)
+      .map((p) => `${p.complex_name}||${p.address}`)
+  );
+
+  for (const key of complexKeys) {
+    const [complexName, address] = key.split("||");
+
+    // Check if a parent (unit_number IS NULL) already exists.
+    const { data: existing } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("billing_account_id", billingAccountId)
+      .eq("complex_name", complexName)
+      .eq("address", address)
+      .is("unit_number", null)
+      .maybeSingle();
+
+    let parentId: string;
+    if (existing) {
+      parentId = existing.id;
+    } else {
+      // Pick a representative unit to seed the parent's suburb / erf_number.
+      const rep = unitProperties.find((p) => p.complex_name === complexName && p.address === address);
+      const { data: created, error } = await supabase
+        .from("properties")
+        .insert({
+          billing_account_id: billingAccountId,
+          address,
+          complex_name: complexName,
+          unit_number: null,
+          erf_number: rep?.erf_number ?? null,
+          suburb: rep?.suburb ?? null,
+          postal_code: rep?.postal_code ?? null,
+          status: "active",
+          billing_frequency: "monthly",
+        })
+        .select("id")
+        .single();
+      if (error || !created) return; // Non-fatal — parent creation failure doesn't block the bill.
+      parentId = created.id;
+    }
+
+    // Link any unit properties that don't yet have this parent set.
+    const { data: units } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("billing_account_id", billingAccountId)
+      .eq("complex_name", complexName)
+      .eq("address", address)
+      .not("unit_number", "is", null)
+      .or(`parent_property_id.is.null,parent_property_id.neq.${parentId}`);
+
+    if (units && units.length > 0) {
+      await supabase
+        .from("properties")
+        .update({ parent_property_id: parentId })
+        .in("id", units.map((u) => u.id));
+    }
+  }
+}
 
 function collectMatchWarnings(billId: string, match: MatchResult): WarningRow[] {
   // Warnings repeat across primary + per-line decisions when those lines all

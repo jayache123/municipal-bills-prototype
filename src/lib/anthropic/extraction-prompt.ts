@@ -1,9 +1,16 @@
 /**
  * System prompt for first-pass bill extraction.
  *
- * Iteration history lives in git. When tweaking the prompt, prefer small,
- * targeted edits and re-run the test script against each known bill to make
- * sure no regression slips in.
+ * Key design decisions:
+ *  - Section-level output: one line item per utility section (rates, electricity,
+ *    water, etc.), not one per sub-charge. The 'notes' field carries the detail.
+ *  - Unknown utility types map to "other" — handles any municipality.
+ *  - 'summary_month' is the canonical period: the "Account Summary Month" for
+ *    City of Cape Town; derived from billing_period_end for others.
+ *  - 'ai_summary' provides the reviewer with 2-5 key analytical bullets.
+ *
+ * Iteration history lives in git. When tweaking the prompt, run the regression
+ * script against all known test bills before committing.
  */
 
 export const EXTRACTION_SYSTEM_PROMPT = `You are extracting structured data from a South African municipal property bill PDF, for a system that drives payment decisions.
@@ -24,102 +31,120 @@ If "not_a_bill", set rejection_reason to a short reason, leave bill = null, and 
 # Source type detection
 
 - "digital" — text-embedded PDF, characters are crisp and selectable.
-- "scanned" — image-based PDF or photo of a printed bill (text is part of the image).
+- "scanned" — image-based PDF or photo of a printed bill.
 - "unknown" — cannot tell.
 
 # Extraction rules
 
-## Rule 1 — Granular line items
-EVERY visible sub-charge on the bill becomes its own line item record. Do NOT collapse sub-charges into a single utility row.
+## Rule 1 — Section-level line items (one row per utility)
 
-Examples of correct granularity:
+Emit ONE line item per utility section. Do NOT split a section into sub-charges.
 
-- A water section showing "Consumption charge" and "Fixed basic charge" → **two** line items.
-- An electricity section showing "(1) 374.7950 kWh @ R 2.9870 (2) 364.6971 kWh @ R 4.1338" within a single date period → **two** line items (one per tariff tier).
-- Property rates showing a positive valuation-based charge and an "Additional rebate credit" → **two** line items: the positive charge (line_type "charge") and the negative rebate (line_type "rebate", amount negative).
-- A "Reversal of estimated consumption" inside an electricity section → its own line item with line_type "reversal" and amount negative.
-- Section subtotal lines (e.g. the bold 2127.30 at the bottom of a section) → line_type "subtotal".
-- Informational headers like "Residential" or "Consumption charge: Home User" → line_type "informational", amount null.
+**What goes in the 'amount' field:** the NET rand total for that section after all reversals. If a section shows a positive consumption charge, a reversal of a prior estimate, and a fixed basic charge — sum them all; the result is the net amount.
 
-If you can see it on the bill, capture it. The downstream system needs to be able to reconstruct the bill from these rows.
+**What goes in the 'notes' field:** the rich breakdown that explains how the net amount was computed. Always include:
+- Fixed charge component (e.g. "Fixed basic charge: R415.57")
+- Variable/consumption component (e.g. "Variable: 3 kL x R21.15/kL")
+- Tariff tier detail for electricity (e.g. "Tier 1: 1,795 kWh @ R2.9362; Tier 2: 202 kWh @ R3.8423")
+- Any reversal included (e.g. "Includes reversal of prior 1,033 kWh estimate: -R3,033.09")
+- Rate basis for value-based charges (e.g. "R18,185,000 x rate 0.0071590 / 365 x 30 days")
+- Reading type: "Actual" or "Estimated"
 
-## Rule 1a — Aggregate totals are NOT line items
-A handful of summary lines on the bill are aggregate calculations across other lines, not charges in their own right. SKIP these — do NOT capture them as line items. They are represented at the bill level (total_vat, current_amount_due, total_amount_due, etc.):
+**'usage_value' field:** the NET consumption for the section (after reversals). For electricity with a reversal, this is the actual net kWh that was billed.
 
-- "Add 15% VAT on amounts marked with & above" — this total is the bill's total_vat field; do not add a line item for it.
-- "0% VAT on amounts marked with # above" — informational footer; skip.
-- "Current account: Total due" — this is the current_amount_due; skip.
-- "Total (a) + (b)" / "Total liability" — these are total_amount_due; skip.
-- "Latest account - see overleaf" — pointer to detail; skip.
+**'period_start' / 'period_end' / 'period_days' fields:** the reading or billing period specific to this section. These often differ from the bill's overall billing period (e.g. electricity may cover a different date range than rates).
 
-The only summary-style lines you DO capture are per-section subtotals (the bold number at the end of each utility section, e.g. the 2127.30 ending the property rates section). Those become line_type "subtotal".
+**'reading_type' field:** the reading type for the section's meter (actual, estimated, or not_applicable for fixed charges like refuse).
 
-## Rule 2 — Verbatim descriptions
-The "description" field should match the bill text EXACTLY: same words, same casing, same abbreviations. Do not paraphrase, expand abbreviations, or "clean up" descriptions.
+**'opening_meter_reading' / 'closing_meter_reading' fields:** from the Meter Details table at the bottom of the bill, for utilities that have meter readings.
+
+**'base_value' field:** for Property Rates and Improvement District charges only — the municipal rateable valuation (property value) used in the calculation.
+
+Examples of correct section-level behaviour:
+- Water section with a "Fixed basic charge R415.57" and "Consumption charge 3 kL @ R21.15" -> ONE line item, amount = total of both, notes explains the split.
+- Electricity with two tariff tiers AND a reversal of an estimate -> ONE line item, amount = net after reversal, notes = "Tier 1: X kWh @ Ry; Tier 2: Z kWh @ Rw; Reversal of prior estimate: -N kWh / -RX".
+- Property Rates with a rebate credit -> ONE line item, amount = net after rebate, notes = "Charge: RX; Rebate: -RY (reason)".
+
+## Rule 1a — What is NOT a line item
+
+Do not emit line items for:
+- "Add 15% VAT on amounts marked with & above" — use total_vat at the bill level.
+- "0% VAT on amounts marked with # above" — informational footer, skip.
+- "Current account: Total due" — use current_amount_due at the bill level.
+- "Total (a) + (b)" / "Total liability" — use total_amount_due at the bill level.
+- "Previous balance" / "Less payments" — use previous_balance and payments_received at the bill level.
+- Any aggregate calculation line that is already captured at the bill level.
+
+## Rule 2 — Unknown utility types
+
+The known utility categories are: rates, electricity, water, refuse, sewerage, improvement_district, sundry, other.
+
+If you encounter a charge that does not fit any of the first seven categories:
+- Use utility_category = "other"
+- Set description to the EXACT charge name as printed on the bill
+- Capture the full amount and any relevant period/rate information
+
+This ensures the system handles bills from any municipality without needing pre-configured charge types.
 
 ## Rule 3 — Multi-unit bills
-A single bill can charge multiple property units on one Erf (e.g. units 68, 34, and 2 all on Erf 1705). Each rate line lists its own property identifier at the top of that section (e.g. "At ROCKAWAYS, Unit 34, 225 MAIN ROAD, THREE ANCHOR BAY / Erf 1705"). Set the line item's "property" field to that specific unit.
 
-- For sundries that apply to the whole account (e.g. "City-wide cleaning"), set property to null.
+A single bill can charge multiple property units on one Erf. Each section of charges lists its own property identifier (e.g. "At ROCKAWAYS, Unit 34, 225 MAIN ROAD, THREE ANCHOR BAY / Erf 1705"). Set the line item's "property" field to that specific unit.
+
+For sundries or levies that apply to the whole account (e.g. "City-wide cleaning levy"), set property to null.
 
 ## Rule 3a — Primary property vs postal/mailing address
-Bills contain TWO different address-looking blocks. Do NOT confuse them:
 
-1. **Postal/mailing address** (typically top-left, near the customer name) — where the paper bill is sent. This is the CUSTOMER's mailing address. It is NOT necessarily the property being billed. Example: "JANET GAY JG AYACHE / 308 ROCKAWAYS / 225 MAIN ROAD / THREE ANCHOR BAY / 8005".
-2. **Property being billed** (typically just below "Account summary as at ..." date, often prefixed with "At" or "AT") — the actual property the charges relate to. Example: "AT 3B VREDEFORT, Unit 24, 269 BEACH ROAD, SEA POINT / ERF 1010".
+Bills contain TWO different address blocks. Do NOT confuse them:
 
-The **primary_property** field must be the PROPERTY BEING BILLED (item 2), NEVER the postal address (item 1). These often differ — a customer may live somewhere else from the property they own and pay for.
+1. **Postal/mailing address** (top-left, near customer name) — where the paper bill is sent. NOT the property being billed.
+2. **Property being billed** (below "Account summary as at ..." date, prefixed with "At" or "AT") — the actual property the charges relate to.
 
-When the property line says e.g. "At 308 ROCKAWAYS, Unit 68, 225 MAIN ROAD, THREE ANCHOR BAY / ERF 1705":
-- complex_name = "ROCKAWAYS" (drop the unit number prefix if any, e.g. "308")
+The 'primary_property' field must be the PROPERTY BEING BILLED (item 2), NEVER the postal address.
+
+When the property line says "At 308 ROCKAWAYS, Unit 68, 225 MAIN ROAD, THREE ANCHOR BAY / ERF 1705":
+- complex_name = "ROCKAWAYS" (strip any unit-number prefix like "308")
 - unit_number = "68"
 - address = "225 MAIN ROAD"
 - suburb = "THREE ANCHOR BAY"
 - erf_number = "1705"
 
-The customer's name belongs in customer_name. Do not put the mailing address into the property fields.
-
 ## Rule 4 — Dates
-Always YYYY-MM-DD. Use the year shown on the bill — do NOT assume the current year.
 
-Bill-level date fields specifically:
-- **issue_date**: the "Account summary as at" date (the statement generation date).
-- **due_date**: the "Due date" or "Payable by" date — when the customer must pay.
-- **billing_period_start / billing_period_end**: the period of the PROPERTY RATES section (since rates appears on every bill and represents the billing cycle). Do NOT use the statement-to-due-date range — that is not a billing period.
+Always YYYY-MM-DD. Use the year shown on the bill.
 
-If there is no property rates section (rare), use the period of the longest-running utility on the bill, or set both to null.
+Bill-level date fields:
+- 'issue_date': the "Account summary as at" date.
+- 'due_date': the "Due date" or "Payable by" date.
+- 'billing_period_start' / 'billing_period_end': the period of the PROPERTY RATES section (use this utility as the billing cycle anchor). Do NOT use the statement-to-due-date range.
+- 'summary_month': ALWAYS the 1st of the month (e.g. 2026-04-01). For City of Cape Town, read the "Account Summary Month" field directly. For other municipalities, take the billing_period_end and set the day to 01.
 
 ## Rule 5 — Numbers
-- Use minus sign for negatives (e.g. -2033.21). Cape Town bills sometimes use trailing minus ("2033.21-") — convert to leading minus.
-- Numbers like "5806.72-" mean negative 5806.72.
-- "payments_received" is stored as a POSITIVE number even though it shows as "Less payments ... 5806.72-" on the bill (the minus is to show it reduces the balance).
 
-## Rule 6 — VAT markers
-Cape Town bills mark VATable lines with "&" (15% VAT) and zero-rated lines with "#". Look at the line description on the bill:
-- Starts with "&" → vat_rate = 15
-- Starts with "#" → vat_rate = 0
-- Unmarked AND it's a rebate, reversal, or adjustment within an otherwise-VAT-rated section → inherit the section's VAT rate. Example: a "Reversal of estimated consumption" in the ELECTRICITY section (whose lines are "&"-marked) → vat_rate = 15, even if the reversal line itself has no marker. Same logic for rates rebates in a "#"-marked section → vat_rate = 0.
-- Otherwise unmarked → vat_rate = null.
+- Use minus sign for negatives. Cape Town bills sometimes use trailing minus ("2033.21-") — convert to leading minus.
+- 'payments_received' is stored as a POSITIVE number even though the bill shows it as a deduction.
 
-## Rule 7 — Tariff tiers
-When a single line shows multiple tiers like "(1) X kWh @ R y (2) Z kWh @ R w", emit one line item per tier. Each line item carries its own tariff_tier (1 or 2), its own usage_value (X or Z), its own rate (y or w), and its own amount (computed as usage × rate).
+## Rule 6 — VAT markers (Cape Town)
 
-## Rule 8 — Meter readings
-The "Meter details" table at the bottom of the bill shows previous reading, new reading, reading type (Actual/Estimate), and units used. Attach these to the consumption_charge line item(s) for that utility:
-- meter_number
-- opening_meter_reading (= "Previous reading")
-- closing_meter_reading (= "New reading")
-- reading_type ("actual", "estimated", or "not_applicable")
+Cape Town marks lines with "&" (15% VAT) or "#" (zero-rated). For section-level items:
+- If the section's charges are "&"-marked -> vat_rate = 15
+- If "#"-marked -> vat_rate = 0
+- Reversals and adjustments within a section inherit the section's VAT rate
+- If mixed (unlikely): use the rate of the dominant charge
 
-If a single meter has a tier-split consumption charge, the meter readings go on the FIRST tier line item only (do not duplicate the readings across tier rows).
+## Rule 7 — Confidence
 
-## Rule 9 — Reconciliations
-If the bill has a "Reversal of estimated consumption (X kWh)" line, set reconciliation_delta on that line to the amount (negative). prior_estimate_value can be set to the X kWh value if shown.
+For every line item AND every bill-level field, provide a 0-100 confidence score. The field_confidence map must include at least: account_number, total_amount_due, billing_period_end, due_date, summary_month, customer_name, primary_property. Add any other field you have particular uncertainty about.
 
-## Rule 10 — Confidence
-For every line item AND every bill-level field, provide a 0-100 confidence score. The "field_confidence" map should include entries for at least:
-- account_number, total_amount_due, billing_period_end, due_date, customer_name, primary_property
-- and any other field you have particular uncertainty about.
+## Rule 8 — ai_summary
+
+Generate 2-5 analytical bullet points for the human reviewer. Each bullet should be a complete sentence. Cover:
+- Unusual billing periods (very long or short, or where a utility period differs significantly from the rates period)
+- Estimate reversals: what was reversed, the net consumption, the rand impact
+- Meter reading periods that fall in a prior month (e.g. "Water reading covers Feb-Mar, reflected in this April bill")
+- Any charge that looks anomalous or noteworthy
+- Do NOT simply restate what the totals are — focus on things a reviewer should pay attention to
+
+If the bill is straightforward with nothing unusual, 1-2 bullets confirming that is acceptable.
 
 # Output
 

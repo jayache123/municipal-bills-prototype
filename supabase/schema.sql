@@ -117,16 +117,22 @@ create index if not exists idx_billing_accounts_municipality on billing_accounts
 
 
 -- Properties (units). Each unit belongs to a billing account.
--- Multi-unit Erfs have multiple rows here pointing to the same billing account.
+-- Multi-unit complexes have a parent record (unit_number IS NULL) and child unit
+-- records with parent_property_id pointing at the parent. Single-property accounts
+-- (e.g. a standalone house) have no parent.
 create table if not exists properties (
   id uuid primary key default gen_random_uuid(),
   billing_account_id uuid not null references billing_accounts(id) on delete restrict,
+  -- Self-referential parent: child units point to the complex's parent record.
+  parent_property_id uuid references properties(id) on delete set null,
   address text not null,
   complex_name text,
   unit_number text,
   erf_number text,
   suburb text,
   postal_code text,
+  -- Latest known rateable valuation from rates line items.
+  municipal_valuation numeric(14,2),
   status property_status not null default 'active',
   billing_frequency billing_frequency not null default 'monthly',
   notes text,
@@ -141,6 +147,7 @@ for each row execute function set_updated_at();
 
 create index if not exists idx_properties_billing_account on properties(billing_account_id);
 create index if not exists idx_properties_status on properties(status);
+create index if not exists idx_properties_parent on properties(parent_property_id);
 
 
 -- Bills. One row per PDF document.
@@ -166,6 +173,10 @@ create table if not exists bills (
   extraction_pass_count int not null default 1,
   extraction_model text,
   status bill_status not null default 'received',
+  -- Canonical billing period month (1st of month). Primary filter for dashboard/lists.
+  summary_month date,
+  -- AI-generated analytical bullet points for the reviewer (array of strings).
+  ai_summary jsonb,
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -180,10 +191,12 @@ create index if not exists idx_bills_billing_account on bills(billing_account_id
 create index if not exists idx_bills_status on bills(status);
 create index if not exists idx_bills_period on bills(billing_period_start, billing_period_end);
 create index if not exists idx_bills_due_date on bills(due_date);
+create index if not exists idx_bills_summary_month on bills(summary_month);
 
 
--- Bill line items. Granular — one row per visible sub-charge on the bill.
--- All rows for a bill, sorted by line_order, should reconstruct the document.
+-- Bill line items. Section-level — one row per utility category per bill
+-- (rates, electricity, water, refuse, sewerage, etc.). The 'notes' field carries
+-- the rich breakdown: fixed/variable split, tier rates, reversal context.
 create table if not exists bill_line_items (
   id uuid primary key default gen_random_uuid(),
   bill_id uuid not null references bills(id) on delete cascade,

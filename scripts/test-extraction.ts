@@ -83,13 +83,12 @@ function summarize(result: ExtractionResult): void {
       .reduce((sum, i) => sum + (i.amount ?? 0), 0);
     console.log(`\n  [${section}]   sum of charges: ${formatRand(sectionTotal)}`);
     for (const item of items) {
-      const tier = item.tariff_tier ? ` t${item.tariff_tier}` : "";
       const usage = item.usage_value !== null ? ` ${item.usage_value} ${item.usage_unit ?? ""}` : "";
       const period = item.period_start ? ` [${item.period_start}→${item.period_end ?? "?"}]` : "";
       const unit = item.property?.unit_number ? ` (Unit ${item.property.unit_number})` : "";
       console.log(
         `    ${String(item.line_order).padStart(3)}. ${item.line_type.padEnd(20)} ` +
-        `${formatRand(item.amount).padStart(12)}  ${(item.description ?? "").slice(0, 50)}${tier}${usage}${period}${unit} [conf ${item.confidence}]`,
+        `${formatRand(item.amount).padStart(12)}  ${(item.description ?? "").slice(0, 50)}${usage}${period}${unit} [conf ${item.confidence}]`,
       );
     }
   }

@@ -25,6 +25,8 @@ type Bill = {
   confidence_score: number | null;
   extraction_model: string | null;
   notes: string | null;
+  ai_summary: string[] | null;
+  summary_month: string | null;
   created_at: string;
   billing_accounts: {
     account_number: string;
@@ -55,10 +57,10 @@ type LineItem = {
   usage_unit: string | null;
   rate: number | null;
   rate_unit: string | null;
-  tariff_tier: number | null;
   opening_meter_reading: number | null;
   closing_meter_reading: number | null;
   reading_type: string | null;
+  notes: string | null;
 };
 
 type FieldError = {
@@ -274,6 +276,23 @@ export default async function BillDetailPage({
           </div>
         </div>
 
+        {/* ── AI Summary ── */}
+        {bill.ai_summary && bill.ai_summary.length > 0 && (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
+            <h2 className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">
+              Bill Summary
+            </h2>
+            <ul className="space-y-1.5">
+              {bill.ai_summary.map((bullet, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-blue-900">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400" />
+                  {bullet}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* ── Bill info ── */}
         <SectionCard title="Bill Information">
           <InfoGrid
@@ -381,12 +400,12 @@ export default async function BillDetailPage({
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b border-zinc-100">
-                    {["#", "Category", "Description", "Period", "Usage", "Amount"].map((h, i) => (
+                    {["#", "Category", "Description", "Breakdown", "Period", "Usage", "Amount"].map((h, i) => (
                       <th
                         key={h}
                         scope="col"
                         className={`px-5 py-2 text-xs font-medium text-zinc-500 uppercase tracking-wide whitespace-nowrap ${
-                          i >= 4 ? "text-right" : "text-left"
+                          i >= 5 ? "text-right" : "text-left"
                         }`}
                       >
                         {h}
@@ -423,14 +442,16 @@ export default async function BillDetailPage({
                           <span className={isSubtotal ? "font-semibold" : ""}>
                             {item.description ?? item.section_label ?? "—"}
                           </span>
-                          {item.tariff_tier && (
-                            <span className="ml-1.5 text-xs text-zinc-400">Tier {item.tariff_tier}</span>
-                          )}
                           {isCredit && (
                             <span className="ml-1.5 inline-flex items-center rounded-full bg-green-50 px-1.5 py-0.5 text-xs font-medium text-green-700 ring-1 ring-green-600/20">
                               {item.line_type}
                             </span>
                           )}
+                        </td>
+
+                        {/* Breakdown (notes) */}
+                        <td className="px-5 py-2 text-xs text-zinc-500 max-w-xs">
+                          {item.notes ?? "—"}
                         </td>
 
                         {/* Period */}

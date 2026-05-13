@@ -2,14 +2,33 @@
 
 Where we are right now and what's next. Updated on every commit.
 
-**Last updated:** 2026-05-12
-**Last commit:** `ca36762` — docs: record Vercel deployment (Step 12)
+**Last updated:** 2026-05-13
+**Last commit:** (pending) — feat: section-level extraction, summary_month, ai_summary, parent properties
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
 ---
 
-## Current phase: "Wire extraction into the app"
+## Current phase: "Extraction quality + data model improvements"
+
+### Status
+
+- [x] **Step 13** — Section-level extraction + summary_month + ai_summary + parent properties
+  - Extraction prompt rewritten: one row per utility section (not per sub-charge)
+  - `notes` field on line items carries rich breakdown (fixed/variable split, tier rates, reversal context)
+  - `summary_month DATE` added to `bills` — canonical period for filtering; backfilled for all 5 existing bills
+  - `ai_summary JSONB` added to `bills` — Claude generates 2–5 reviewer bullet points per bill
+  - `parent_property_id UUID` added to `properties` — parent-child hierarchy for complexes
+  - `municipal_valuation NUMERIC` added to `properties` — rateable value captured from rates line items
+  - DB migration: `supabase/migrations/002_add_summary_month_ai_summary_parent_property.sql`
+  - Backfill script: `npm run backfill` — created parent properties for Rockaways, Twin Towers, 3B Vredefort; backfilled summary_month on all bills
+  - `save.ts` updated: persists summary_month + ai_summary; auto-creates parent property for multi-unit bills; updates municipal_valuation from rates line items
+  - Bill detail UI: new "Bill Summary" section showing ai_summary bullets; "Breakdown" column on line items showing notes
+  - Property detail UI: new "Units" section on parent properties showing child units + valuations
+
+---
+
+## Earlier phase: "Wire extraction into the app"
 
 A 7-step plan to take the working CLI extraction and turn it into a real upload-to-database-to-review pipeline.
 

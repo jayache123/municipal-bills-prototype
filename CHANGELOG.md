@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-05-13 — Full bill review: three accuracy fixes
+
+### Fix — Data (DB updates)
+- **Rockaways May 2026 sundry subtotal**: corrected `amount` from R521.72 → R181.83.
+  The extraction had baked the electricity fixed charge (R339.89) into the sundry
+  subtotal even though that charge was correctly stored as a separate electricity row,
+  causing the Financial Summary to double-count it by R339.89. The bold Total was
+  always correct (it comes from `total_amount_due`).
+- **19 Atholl Apr 2026 sewerage**: corrected `reading_type` from `"not_applicable"` →
+  `"actual"` on the sewerage consumption_charge row. Now shows "Actual" in the
+  Reading column instead of "—".
+
+### Fix — Code (display)
+- **Notes per-property aggregation**: `categoryAggNotes`, `categoryAggUsage`, and
+  `categoryAggReading` now key on `utility_category|property_id` instead of
+  `utility_category` alone. On multi-unit bills (Rockaways), each unit's subtotal row
+  now shows only its own charge breakdown in the Notes column — not every other unit's
+  figures. Single-property bills are unaffected.
+
+---
+
 ## 2026-05-13 — Bills list Period column now uses issue date
 
 ### Fix

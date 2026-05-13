@@ -291,12 +291,19 @@ export default async function BillDetailPage({
       .map((i) => i.utility_category)
   );
 
-  // Build per-component note strings for each category — one entry per
-  // non-informational, non-subtotal row. Each entry combines the row's
-  // description (tariff formula / tier label) with the amount it contributed,
-  // so a reviewer can see exactly what makes up the section total.
-  // These entries become the Notes bullets when the subtotal row's own
-  // notes field is sparse or null.
+  // Composite key for per-property aggregation maps.
+  // Using "category|property_id" means multi-unit bills (e.g. Rockaways with
+  // units 68, 34 and 2) get separate buckets per unit, so each unit's subtotal
+  // row only shows its own charge breakdown — not every other unit's figures.
+  // Single-property bills are unaffected (all rows share the same property_id).
+  const aggKey = (item: LineItem) =>
+    `${item.utility_category}|${item.property_id ?? ""}`;
+
+  // Build per-component note strings keyed by category+property.
+  // Each entry combines the row's description (tariff formula / tier label)
+  // with the amount it contributed, so a reviewer can see exactly what makes
+  // up the section total. These entries become the Notes bullets when the
+  // subtotal row's own notes field is sparse or null.
   const categoryAggNotes = new Map<string, string[]>();
   for (const item of lineItems) {
     if (item.line_type === "informational" || item.line_type === "subtotal") continue;
@@ -318,13 +325,14 @@ export default async function BillDetailPage({
 
     const entry = pieces.join(" ");
     if (entry.trim()) {
-      const arr = categoryAggNotes.get(item.utility_category) ?? [];
+      const key = aggKey(item);
+      const arr = categoryAggNotes.get(key) ?? [];
       arr.push(entry);
-      categoryAggNotes.set(item.utility_category, arr);
+      categoryAggNotes.set(key, arr);
     }
   }
 
-  // Aggregate usage (units consumed) from component rows per category.
+  // Aggregate usage (units consumed) from component rows per category+property.
   // Subtotal rows typically have null usage_value even when their charge rows do not.
   // We sum positive-amount rows only (skip rebates/reversals) and require consistent units.
   const categoryAggUsage = new Map<string, { total: number; unit: string }>();
@@ -333,22 +341,24 @@ export default async function BillDetailPage({
     if (item.usage_value === null || !item.usage_unit) continue;
     if (item.amount !== null && Number(item.amount) < 0) continue; // skip rebates/reversals
     const val = Number(item.usage_value);
-    const existing = categoryAggUsage.get(item.utility_category);
+    const key = aggKey(item);
+    const existing = categoryAggUsage.get(key);
     if (!existing) {
-      categoryAggUsage.set(item.utility_category, { total: val, unit: item.usage_unit });
+      categoryAggUsage.set(key, { total: val, unit: item.usage_unit });
     } else if (existing.unit === item.usage_unit) {
-      categoryAggUsage.set(item.utility_category, { total: existing.total + val, unit: item.usage_unit });
+      categoryAggUsage.set(key, { total: existing.total + val, unit: item.usage_unit });
     }
   }
 
-  // Aggregate reading type from component rows per category.
+  // Aggregate reading type from component rows per category+property.
   // Subtotal rows often carry null or "not_applicable" even when components say "actual".
   const categoryAggReading = new Map<string, string>();
   for (const item of lineItems) {
     if (item.line_type === "informational" || item.line_type === "subtotal") continue;
     if (!item.reading_type || item.reading_type === "not_applicable") continue;
-    if (!categoryAggReading.has(item.utility_category)) {
-      categoryAggReading.set(item.utility_category, item.reading_type);
+    const key = aggKey(item);
+    if (!categoryAggReading.has(key)) {
+      categoryAggReading.set(key, item.reading_type);
     }
   }
 
@@ -615,7 +625,7 @@ export default async function BillDetailPage({
                     // section with rich notes), use the row's own notes string.
                     const noteParts   = (item.line_type !== "subtotal" && item.notes)
                                         ? item.notes.split(/;\s*/).map(p => p.trim()).filter(Boolean)
-                                        : (categoryAggNotes.get(item.utility_category) ?? []);
+                                        : (categoryAggNotes.get(aggKey(item)) ?? []);
 
                     return (
                       <tr
@@ -665,7 +675,7 @@ export default async function BillDetailPage({
                           {formatReading(
                             (item.reading_type && item.reading_type !== "not_applicable")
                               ? item.reading_type
-                              : (categoryAggReading.get(item.utility_category) ?? null)
+                              : (categoryAggReading.get(aggKey(item)) ?? null)
                           )}
                         </td>
 
@@ -675,7 +685,7 @@ export default async function BillDetailPage({
                             if (item.usage_value !== null && item.usage_unit) {
                               return `${Number(item.usage_value).toLocaleString("en-ZA", { maximumFractionDigits: 3 })} ${item.usage_unit}`;
                             }
-                            const agg = categoryAggUsage.get(item.utility_category);
+                            const agg = categoryAggUsage.get(aggKey(item));
                             if (agg) {
                               return `${agg.total.toLocaleString("en-ZA", { maximumFractionDigits: 3 })} ${agg.unit}`;
                             }

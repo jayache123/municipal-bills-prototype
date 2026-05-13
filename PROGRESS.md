@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** fix: Bills list Period column uses issue_date month instead of billing_period_start
+**Last commit:** fix: full bill review — sundry subtotal, sewerage reading, notes per-property
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
@@ -12,6 +12,12 @@ Where we are right now and what's next. Updated on every commit.
 ## Current phase: "UI polish + data quality"
 
 ### Status
+
+- [x] **Full bill review** — Methodical pass through all 6 bills; three issues found and fixed:
+  - Rockaways May 2026: sundry subtotal corrected in DB (R521.72 → R181.83, was double-counting electricity fixed charge)
+  - 19 Atholl Apr 2026: sewerage `reading_type` corrected in DB (`not_applicable` → `actual`)
+  - All bills: Notes aggregation now keyed on `utility_category|property_id` so each unit row shows only its own breakdown
+  - Remaining known gap: 5 of 6 bills have no `ai_summary` bullets — AI backfill is a future task
 
 - [x] **Bill detail data accuracy fixes** — Three data display bugs corrected in Detailed Breakdown table
   - Reading column now shows "Actual" / "Estimated" (formatted from `reading_type`); subtotal rows that have `reading_type = "not_applicable"` fall back to the first meaningful value from their component rows via `categoryAggReading`

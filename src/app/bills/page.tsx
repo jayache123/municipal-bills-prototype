@@ -9,6 +9,7 @@ type BillRow = {
   id: string;
   status: string;
   billing_period_start: string | null;
+  issue_date: string | null;
   total_amount_due: number | null;
   due_date: string | null;
   created_at: string;
@@ -94,6 +95,7 @@ export default async function BillsPage({
       id,
       status,
       billing_period_start,
+      issue_date,
       total_amount_due,
       due_date,
       created_at,
@@ -246,9 +248,9 @@ export default async function BillsPage({
                           )}
                         </td>
 
-                        {/* Period */}
+                        {/* Period — use issue_date so the displayed month matches the bill date */}
                         <td className="px-4 py-3 text-sm text-zinc-600 whitespace-nowrap">
-                          {formatPeriod(bill.billing_period_start)}
+                          {formatPeriod(bill.issue_date ?? bill.billing_period_start)}
                         </td>
 
                         {/* Amount due */}

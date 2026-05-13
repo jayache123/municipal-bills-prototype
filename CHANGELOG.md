@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-05-13 — Bills list Period column now uses issue date
+
+### Fix
+- The Period column in the bills list (`/bills`) was showing the billing period start
+  month (e.g. Apr 2026 for an Apr–May billing window). It now shows the issue date
+  month (e.g. May 2026), matching what's printed on the bill. Falls back to
+  `billing_period_start` only if `issue_date` is null. `issue_date` added to the
+  bills list query and `BillRow` type.
+
+---
+
 ## 2026-05-13 — Month column falls back to issue date
 
 ### Fix

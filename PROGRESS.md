@@ -195,15 +195,16 @@ The prototype is demo-ready. Things to build next, in rough priority order:
 
 ## Test bill inventory
 
-Bills we've extracted and validated. Use this as the regression set when changing the extraction prompt.
+All 6 bills are extracted, saved, approved, and in the live DB. Use this as the regression set when changing the extraction prompt.
 
-| File (in `example_rates/`) | Account | What it exercises |
-|---|---|---|
-| `19 Atholl Road Rates - February 2026.pdf` | 239130147 | Single property, full utility suite (rates + elec estimated + water + refuse + sewerage + improvement district + sundries) |
-| `3B Vredefort Unit 24 - August 2025 Rates Account.pdf` | 235055327 | Single unit, stepped electricity tariffs (4 tier lines), reversal of estimated consumption, rate rebate |
-| `Rockaways Rates May 2026.PDF` | 219850405 | Multi-unit (3 units on Erf 1705), sundries with rebates, no meter readings |
-| `Rockaways Rates January 2026.PDF` | 219850405 | (Available; not yet test-extracted) Same account as above, different month — useful for time-series testing later |
-| `Twin Towers - September 2024.PDF` | 228414930 | (Available; not yet test-extracted) Multi-unit rates-only bill |
+| File (in `example_rates/`) | Account | Period | What it exercises |
+|---|---|---|---|
+| `Twin Towers - October 2024.PDF` | 228414930 | Oct 2024 | Multi-unit rates-only bill (3 units: 65, 117, 191 on Erf 1099); no VAT; old extraction format (separate charge rows, no subtotal rows) |
+| `3B Vredefort Unit 24 - August 2025 Rates Account.pdf` | 235055327 | Aug 2025 | Single unit (24), 63-day electricity period across two tariff periods, 4 tier lines, reversal of estimated 660 kWh, rates rebate |
+| `Rockaways Rates January 2026.PDF` | 219850405 | Jan 2026 | Multi-unit (3 units: 68, 34, 2 on Erf 1705), rates + sundries (incl. prepaid elec service charge), old extraction format |
+| `19 Atholl Road Rates - February 2026.pdf` | 239130147 | Feb 2026 | Single property, full utility suite: rates + estimated electricity + water + refuse + sewerage + improvement district + sundries |
+| `19 Atholl Road Rates - April 2026.PDF` | 239130147 | Apr 2026 | Same property as above, 91-day electricity period (reversal of 1,033 kWh estimate), water/sewerage on prior-month reading dates |
+| `Rockaways Rates May 2026.PDF` | 219850405 | May 2026 | Multi-unit (same 3 units as Jan 2026), prepaid electricity fixed charge, sundries with rebates |
 
 Raw extraction JSONs live in `tmp/` (gitignored) after running `npm run test:extraction`.
 

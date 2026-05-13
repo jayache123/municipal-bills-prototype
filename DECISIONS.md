@@ -416,6 +416,56 @@ loadEnv({ path: ".env.local", override: true });
 
 ---
 
+## UI / display
+
+### Period column and Month column use issue_date, not billing_period_start
+**Date:** 2026-05-13
+**Status:** Active
+
+**Choice:** The "Period" column on the bills list and the "Month" column in the Detailed Breakdown both derive their displayed month from `bills.issue_date`, not `bills.billing_period_start`.
+
+**Why:** Cape Town bills have a billing window that often starts in the prior calendar month (e.g. a May 2026 bill covers 3 Apr – 5 May). Displaying "Apr 2026" for a bill the client thinks of as their May bill is confusing. The issue date (05 May 2026) matches the month printed at the top of the physical bill and the month staff would use to file it.
+
+Fallback: if `issue_date` is null, both columns fall back to `billing_period_start` so nothing breaks on incomplete data.
+
+**Where:** `src/app/bills/page.tsx` (Period column), `src/app/bills/[id]/page.tsx` (Month column in Detailed Breakdown).
+
+**Revisit when:** If we encounter bills where the issue date and the intended filing month diverge (e.g. a bill issued in the first days of a new month that belongs to the prior month).
+
+---
+
+### Notes aggregation keyed on utility_category|property_id
+**Date:** 2026-05-13
+**Status:** Active
+
+**Choice:** `categoryAggNotes`, `categoryAggUsage`, and `categoryAggReading` use the composite key `"${utility_category}|${property_id ?? ""}"` rather than `utility_category` alone.
+
+**Why:** On multi-unit bills (e.g. Rockaways with units 68, 34, and 2), all three units share `utility_category = "rates"`. Keying on category alone meant every unit's subtotal row showed the aggregated notes and usage for *all* units — Unit 34's row would include Unit 68's tariff detail and vice versa. Composite keying isolates each unit so its row shows only its own component breakdown.
+
+Single-property bills are unaffected: all rows in a category share the same `property_id`, so the composite key behaves identically to the simple key.
+
+**Where:** `src/app/bills/[id]/page.tsx` — `aggKey()` helper + all three Maps.
+
+**Revisit when:** If a bill has component rows with no `property_id` and a subtotal row with no `property_id` in the same category, they will correctly share the `"category|"` bucket. Should never be an issue.
+
+---
+
+### AI reviewer summaries can be generated from structured DB data (no PDF re-read)
+**Date:** 2026-05-13
+**Status:** Active
+
+**Choice:** `scripts/backfill-ai-summary.ts` generates `ai_summary` bullets by passing the bill's structured line-item data (already in the DB) to Claude, rather than re-reading the original PDF.
+
+**Why:** Re-reading the PDF would require the raw file to be accessible (Storage), re-running the full extraction pipeline, and significant cost per bill. The structured data already contains everything needed for analytical review bullets (amounts, periods, usage, reading types, notes). The resulting summaries are equally useful to reviewers.
+
+**Consequence:** The backfill prompt is different from the extraction prompt — it asks only for analytical bullets, not full structured extraction. If the extraction prompt changes, summaries don't need regeneration (they're independent). If the summary criteria change, `backfill-ai-summary.ts` can be re-run against specific bills.
+
+**Where:** `scripts/backfill-ai-summary.ts`. Also the pattern to use for any future per-bill enrichment that doesn't require the raw PDF.
+
+**Revisit when:** If we need summaries to cite specific text from the PDF (e.g. flagging unusual charge descriptions verbatim), we'd need to bring the PDF back in.
+
+---
+
 ## Deferred
 
 These are choices we've made *to defer*. Documented so they're not forgotten.

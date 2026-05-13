@@ -44,7 +44,7 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 - `/` — dashboard: summary stat cards, review queue, recent bills, quick links (Step 10)
 - `/upload` — drag-drop bill upload with live progress and colour-coded result cards (Step 7)
 - `/bills` — server-rendered bills list table with status badges and summary columns (Step 8)
-- `/bills/:id` — bill detail review panel: status bar with Approve action, bill info grid, financial summary, issues list, line items table (Step 8)
+- `/bills/:id` — bill detail review panel: status bar + Approve action; four sections: Bill Information, Financial Summary (category-level amounts + VAT + total), Bill Summary (AI reviewer bullets + field errors), Detailed Breakdown (per-line-item table with category badge, item label, month, amount, days, reading type, units used, start/end dates, notes)
 - `/properties` — server-rendered properties list with status, address, complex/unit, account, municipality columns (Step 9)
 - `/properties/:id` — property detail: info grid + bills history table filtered to that property (Step 9)
 
@@ -69,6 +69,7 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 
 ### Standalone scripts (`scripts/`)
 - One-off setup and test scripts (`setup:storage`, `test:connections`, `test:extraction`, etc.)
+- `backfill-ai-summary.ts` — generates AI reviewer bullets for any bill missing `ai_summary`; reads structured DB data (no re-extraction from PDF); safe to re-run
 - Use the same library code as the API routes — single source of truth
 
 ### Database (Supabase, schema in `supabase/schema.sql`)

@@ -188,10 +188,11 @@ export default async function DashboardPage({
       .order("created_at", { ascending: false })
       .limit(5),
 
-    // Property count — period-agnostic.
+    // Property count — top-level only (exclude child units).
     supabase
       .from("properties")
-      .select("id"),
+      .select("id")
+      .is("parent_property_id", null),
   ]);
 
   // ── Compute aggregates ───────────────────────────────────────────────────

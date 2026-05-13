@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-13 — Fix Reading column, Units Used, and Days in Detailed Breakdown
+
+### Fix
+- **Reading column** — now shows "Actual" / "Estimated" correctly. Added `formatReading()`
+  helper that capitalises the value properly. For subtotal rows whose `reading_type` is
+  `"not_applicable"`, a `categoryAggReading` map supplies the first meaningful reading type
+  from the section's component rows (e.g. electricity subtotal now shows "Actual").
+- **Units Used** — now populates for electricity, water, and sewerage. Subtotal rows that
+  carry a null `usage_value` (old extraction format) fall back to `categoryAggUsage`, which
+  sums all positive-amount component rows' `usage_value` fields within the same category.
+  Electricity totals across all tiers; water/sewerage pick up their single usage row.
+- **Days off by one** — `computeDays` was computing exclusive day count. Bills count both
+  the start day and end day, so the formula now adds `+1`:
+  `Math.round((e − s) / 86_400_000) + 1`.
+
+---
+
 ## 2026-05-13 — Richer Notes column from component-row breakdown
 
 ### UI

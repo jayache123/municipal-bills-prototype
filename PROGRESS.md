@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-13
-**Last commit:** fix: enrich Notes column with per-component breakdown from sub-rows
+**Last commit:** fix: correct Reading column, Units Used aggregation, and Days off-by-one in bill detail
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
@@ -12,6 +12,11 @@ Where we are right now and what's next. Updated on every commit.
 ## Current phase: "UI polish + data quality"
 
 ### Status
+
+- [x] **Bill detail data accuracy fixes** — Three data display bugs corrected in Detailed Breakdown table
+  - Reading column now shows "Actual" / "Estimated" (formatted from `reading_type`); subtotal rows that have `reading_type = "not_applicable"` fall back to the first meaningful value from their component rows via `categoryAggReading`
+  - Units Used now shows for electricity, water, and sewerage: subtotal rows with null `usage_value` aggregate positive-amount component rows via `categoryAggUsage` (e.g. sums tier kWh for electricity)
+  - Days column now counts inclusively (both start and end day), matching the printed bill: `computeDays` updated with `+1`
 
 - [x] **Bill detail page redesign** — New four-section layout standardised across all bills
   - Section 1: Bill Information (municipality, account, property, invoice, period, dates)

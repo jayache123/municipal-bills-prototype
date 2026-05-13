@@ -184,8 +184,15 @@ function computeDays(start: string | null, end: string | null): string {
   if (!start || !end) return "—";
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
-  const d = Math.round((e - s) / 86_400_000);
+  // Bills count days inclusively (both start and end day included), so +1.
+  const d = Math.round((e - s) / 86_400_000) + 1;
   return d > 0 ? String(d) : "—";
+}
+
+function formatReading(reading: string | null): string {
+  if (!reading || reading === "not_applicable") return "—";
+  // Capitalise first letter only ("actual" → "Actual", "estimated" → "Estimated").
+  return reading.charAt(0).toUpperCase() + reading.slice(1).toLowerCase();
 }
 
 // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -314,6 +321,34 @@ export default async function BillDetailPage({
       const arr = categoryAggNotes.get(item.utility_category) ?? [];
       arr.push(entry);
       categoryAggNotes.set(item.utility_category, arr);
+    }
+  }
+
+  // Aggregate usage (units consumed) from component rows per category.
+  // Subtotal rows typically have null usage_value even when their charge rows do not.
+  // We sum positive-amount rows only (skip rebates/reversals) and require consistent units.
+  const categoryAggUsage = new Map<string, { total: number; unit: string }>();
+  for (const item of lineItems) {
+    if (item.line_type === "informational" || item.line_type === "subtotal") continue;
+    if (item.usage_value === null || !item.usage_unit) continue;
+    if (item.amount !== null && Number(item.amount) < 0) continue; // skip rebates/reversals
+    const val = Number(item.usage_value);
+    const existing = categoryAggUsage.get(item.utility_category);
+    if (!existing) {
+      categoryAggUsage.set(item.utility_category, { total: val, unit: item.usage_unit });
+    } else if (existing.unit === item.usage_unit) {
+      categoryAggUsage.set(item.utility_category, { total: existing.total + val, unit: item.usage_unit });
+    }
+  }
+
+  // Aggregate reading type from component rows per category.
+  // Subtotal rows often carry null or "not_applicable" even when components say "actual".
+  const categoryAggReading = new Map<string, string>();
+  for (const item of lineItems) {
+    if (item.line_type === "informational" || item.line_type === "subtotal") continue;
+    if (!item.reading_type || item.reading_type === "not_applicable") continue;
+    if (!categoryAggReading.has(item.utility_category)) {
+      categoryAggReading.set(item.utility_category, item.reading_type);
     }
   }
 
@@ -625,16 +660,27 @@ export default async function BillDetailPage({
                           {computeDays(item.period_start, item.period_end)}
                         </td>
 
-                        {/* Reading type */}
-                        <td className="px-4 py-3 align-top text-zinc-500 whitespace-nowrap capitalize">
-                          {item.reading_type ?? "—"}
+                        {/* Reading type — fall back to aggregated from component rows */}
+                        <td className="px-4 py-3 align-top text-zinc-500 whitespace-nowrap">
+                          {formatReading(
+                            (item.reading_type && item.reading_type !== "not_applicable")
+                              ? item.reading_type
+                              : (categoryAggReading.get(item.utility_category) ?? null)
+                          )}
                         </td>
 
-                        {/* Units used */}
+                        {/* Units used — fall back to sum of component rows */}
                         <td className="px-4 py-3 align-top text-right text-zinc-500 tabular-nums whitespace-nowrap">
-                          {item.usage_value !== null
-                            ? `${Number(item.usage_value).toLocaleString("en-ZA", { maximumFractionDigits: 3 })}${item.usage_unit ? ` ${item.usage_unit}` : ""}`
-                            : "—"}
+                          {(() => {
+                            if (item.usage_value !== null && item.usage_unit) {
+                              return `${Number(item.usage_value).toLocaleString("en-ZA", { maximumFractionDigits: 3 })} ${item.usage_unit}`;
+                            }
+                            const agg = categoryAggUsage.get(item.utility_category);
+                            if (agg) {
+                              return `${agg.total.toLocaleString("en-ZA", { maximumFractionDigits: 3 })} ${agg.unit}`;
+                            }
+                            return "—";
+                          })()}
                         </td>
 
                         {/* Start date */}

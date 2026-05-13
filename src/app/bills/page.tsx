@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSupabaseServiceClient } from "@/lib/supabase/server";
-import { PeriodSelector } from "@/components/period-selector";
+import { DashboardPeriodSelector } from "@/components/dashboard-period-selector";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -129,7 +129,7 @@ export default async function BillsPage({
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+        <div className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h1 className="text-xl font-semibold text-zinc-900">Bills</h1>
             <p className="mt-0.5 text-sm text-zinc-500">
@@ -137,15 +137,17 @@ export default async function BillsPage({
               {period && period !== "all" ? " this period" : " total"}
             </p>
           </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <PeriodSelector selected={period ?? null} showAll={true} />
-            <Link
-              href="/upload"
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
-            >
-              + Upload Bill
-            </Link>
-          </div>
+          <Link
+            href="/upload"
+            className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-700 transition-colors"
+          >
+            + Upload Bill
+          </Link>
+        </div>
+
+        {/* ── Period selector ── */}
+        <div className="mb-6">
+          <DashboardPeriodSelector selected={(!period || period === "all") ? "all" : period} />
         </div>
 
         {/* ── Empty state ── */}

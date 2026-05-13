@@ -572,11 +572,13 @@ export default async function BillDetailPage({
                                         : "";
                     const itemLabel   = catLabel + unitSuffix;
 
-                    // Notes: if the item has its own notes string (new extraction
-                    // format, one row per section), split it on ";" into bullets.
-                    // Otherwise fall back to the per-component array built above,
-                    // which shows description + amount for every sub-charge row.
-                    const noteParts   = item.notes
+                    // Notes: subtotal rows (old extraction format) have their own
+                    // notes field, but it typically just says "Subtotal for Unit X
+                    // property rates section" — useless for reviewers. Always use the
+                    // aggregated per-component breakdown for subtotal rows.
+                    // For non-subtotal rows (new extraction format, one row per
+                    // section with rich notes), use the row's own notes string.
+                    const noteParts   = (item.line_type !== "subtotal" && item.notes)
                                         ? item.notes.split(/;\s*/).map(p => p.trim()).filter(Boolean)
                                         : (categoryAggNotes.get(item.utility_category) ?? []);
 

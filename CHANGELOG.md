@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-05-22 — Responsive shell: mobile hamburger nav + UI/UX fixes
+
+### UI — Responsive navigation shell
+- **`src/components/app-shell.tsx`** (new) — "use client" component that owns mobile menu state. Renders the sidebar as `hidden md:flex` on desktop. On mobile, a hamburger button triggers a slide-out drawer (fixed, `z-50`, `w-56`) with a black/40 dimmed backdrop behind it. `<AppShell>` replaces the manual sidebar+topbar wiring in `layout.tsx`.
+- **`src/components/sidebar.tsx`** — accepts optional `onClose` prop. When provided, renders a × close button in the header and calls `onClose` on every nav link click, so the drawer closes after navigation without an extra tap.
+- **`src/components/top-bar.tsx`** — accepts `onMenuOpen` prop; shows a hamburger icon button (`md:hidden`) at the left of the bar on mobile. Breadcrumb parent crumbs set to `hidden sm:inline` so they don't truncate against the hamburger on narrow viewports — the current page label always shows.
+- **`src/app/layout.tsx`** — simplified to `<AppShell>{children}</AppShell>`; removed direct Sidebar and TopBar imports.
+- **Filter bar separators** — `h-4 w-px bg-zinc-200` dividers in `page.tsx`, `bills/page.tsx`, and `utilities-view.tsx` changed to `hidden sm:block` so they don't render as orphaned vertical lines when filter pills wrap to a second row on mobile.
+
+### Verified breakpoints
+- **375px (mobile):** full-width content, hamburger opens slide-out nav with backdrop, all stat cards and tables readable
+- **768px (tablet):** sidebar reappears, 4-col stat cards, all filters inline
+- **1440px (desktop):** identical to pre-change — no regressions
+
+---
+
 ## 2026-05-22 — Analysis page: utility spend/usage analytics mockup
 
 ### New feature

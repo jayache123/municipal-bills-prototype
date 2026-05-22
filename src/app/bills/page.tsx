@@ -160,7 +160,7 @@ export default async function BillsPage({
         {/* ── Period selector + property filter ── */}
         <div className="mb-6 flex items-center gap-3 flex-wrap">
           <DashboardPeriodSelector selected={(!period || period === "all") ? "all" : period} />
-          <div className="h-4 w-px bg-zinc-200" />
+          <div className="hidden sm:block h-4 w-px bg-zinc-200" />
           <PropertyFilter properties={propertyOptions} selected={propertyId} />
         </div>
 

@@ -474,19 +474,19 @@ export function UtilitiesView() {
         </div>
 
         {/* ── Filter row ── */}
-        <div className="sticky top-0 z-40 flex items-center gap-3 flex-wrap rounded-xl border border-zinc-200 bg-white/95 backdrop-blur-sm px-4 py-3 shadow-sm">
+        <div className="sticky top-0 z-40 flex items-center gap-2 flex-wrap rounded-xl border border-zinc-200 bg-white/95 backdrop-blur-sm px-4 py-3 shadow-sm">
           <DateFilter
             months={SAMPLE_MONTHS}
             selected={selectedMonths}
             onChange={setSelectedMonths}
           />
-          <div className="h-4 w-px bg-zinc-200" />
+          <div className="hidden sm:block h-4 w-px bg-zinc-200" />
           <PropertyDropdown
             properties={SAMPLE_PROPERTIES}
             selected={selectedProperty}
             onChange={setSelectedProperty}
           />
-          <div className="h-4 w-px bg-zinc-200" />
+          <div className="hidden sm:block h-4 w-px bg-zinc-200" />
           <CategoryFilter
             selected={selectedCategories}
             onChange={setSelectedCategories}

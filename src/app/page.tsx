@@ -276,7 +276,7 @@ export default async function DashboardPage({
         {/* ── Period selector + property filter ── */}
         <div className="flex items-center gap-3 flex-wrap">
           <DashboardPeriodSelector selected={activePeriod} />
-          <div className="h-4 w-px bg-zinc-200" />
+          <div className="hidden sm:block h-4 w-px bg-zinc-200" />
           <PropertyFilter properties={propertyOptions} selected={propertyId} />
         </div>
 

@@ -3,7 +3,7 @@
 Where we are right now and what's next. Updated on every commit.
 
 **Last updated:** 2026-05-22
-**Last commit:** feat: Analysis page — utility spend/usage analytics with sample data mockup
+**Last commit:** feat: responsive shell — mobile hamburger nav + UI/UX fixes across all breakpoints
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
@@ -12,6 +12,14 @@ Where we are right now and what's next. Updated on every commit.
 ## Current phase: "Analytics + UI polish"
 
 ### Status
+
+- [x] **Responsive shell — mobile hamburger nav + UI/UX fixes (all breakpoints)**
+  - `src/components/app-shell.tsx` (new) — "use client" wrapper that manages `mobileOpen` state; renders sidebar as `hidden md:flex` on desktop, slide-out drawer + black/40 backdrop on mobile; `<AppShell>` replaces the manual sidebar+topbar wiring in `layout.tsx`
+  - `src/components/sidebar.tsx` — accepts optional `onClose` prop; shows × close button in mobile mode; nav links call `onClose` on tap so drawer auto-closes after navigation
+  - `src/components/top-bar.tsx` — accepts `onMenuOpen` prop; hamburger button (`md:hidden`) opens mobile drawer; breadcrumb parent crumbs hidden on mobile (`hidden sm:inline`) to avoid truncation
+  - `src/app/layout.tsx` — simplified to use `<AppShell>`; removed direct Sidebar+TopBar imports
+  - `src/app/page.tsx`, `src/app/bills/page.tsx`, `src/app/utilities/utilities-view.tsx` — filter bar separators (`h-4 w-px`) changed to `hidden sm:block` so they don't render as orphaned lines when filter pills wrap on mobile
+  - Verified at 375px (mobile), 768px (tablet), 1440px (desktop) — no regressions
 
 - [x] **Analysis page — utility spend/usage analytics (mockup with sample data)**
   - New route at `/utilities` (sidebar label: "Analysis") with full client-rendered analytics view

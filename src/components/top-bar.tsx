@@ -8,6 +8,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   "":           "Dashboard",
   bills:        "Bills",
   properties:   "Properties",
+  utilities:    "Analysis",
   upload:       "Upload",
   api:          "API",
 };

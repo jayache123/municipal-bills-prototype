@@ -2,16 +2,31 @@
 
 Where we are right now and what's next. Updated on every commit.
 
-**Last updated:** 2026-05-13
-**Last commit:** fix: property detail Period column uses issue_date like bills list page
+**Last updated:** 2026-05-22
+**Last commit:** feat: Analysis page — utility spend/usage analytics with sample data mockup
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 
 ---
 
-## Current phase: "UI polish + data quality"
+## Current phase: "Analytics + UI polish"
 
 ### Status
+
+- [x] **Analysis page — utility spend/usage analytics (mockup with sample data)**
+  - New route at `/utilities` (sidebar label: "Analysis") with full client-rendered analytics view
+  - `src/lib/categories.ts` — shared category metadata: `UtilityCategory` type, `CATEGORY_ORDER` (8 categories), `CATEGORY_LABELS`, `CATEGORY_SHORT_LABELS`, `CATEGORY_BADGE_CLASSES`, `CATEGORY_CHART_COLORS` (hex), `CATEGORY_VAT_RATE` (rates=0, others=0.15), `USAGE_CATEGORIES`, `VAT_LABEL`, `VAT_CHART_COLOR`
+  - `src/app/utilities/sample-data.ts` — 12 months Apr 2025–Mar 2026, 4 properties; includes water-leak spike (19 Atholl Nov 2025: 95 kL), estimated electricity readings (Atholl Aug+Sep, Vredefort Feb)
+  - `src/app/utilities/date-filter.tsx` — multi-select date dropdown; months grouped by year with year-level select-all; 3-col grid layout
+  - `src/app/utilities/category-filter.tsx` — multi-select category dropdown; each row shows colour swatch + label
+  - `src/app/utilities/utilities-view.tsx` — full interactive view: stat cards (total spend, avg/month, highest category, bills in view), spend-over-time stacked bar chart, usage line charts (electricity/water/sewerage) with estimated-reading hollow dots, monthly breakdown matrix table, spend-by-category donut, property comparison bar chart
+  - Charts: Recharts with a custom `ChartArea` component (ResizeObserver for explicit numeric width/height — avoids `width(-1)` console warnings from ResponsiveContainer)
+  - Filters: date multi-select, property single-select, category multi-select — all sticky/floating (sticky top-0) as the user scrolls; reset button appears when filters are active
+  - VAT: computed inline from `CATEGORY_VAT_RATE`; shown as its own segment in spend chart and matrix; responds to category filter
+  - Property comparison chart always shows all 4 properties; highlights selected property
+  - Sidebar updated: "Analysis" added between Properties and Upload Bill
+  - Breadcrumb updated: `/utilities` segment labelled "Analysis"
+  - **Next step:** wire to real Supabase data (replace `sample-data.ts` with server fetch); add URL params for filter state
 
 - [x] **Inline status pills** — Every status badge across the app is now a clickable pill that changes status inline without a page reload
   - `src/components/status-pill.tsx` — "use client" dropdown: fixed-position panel (escapes `overflow:hidden` tables), optimistic UI update with revert on error, outside-click close, `stopPropagation` so stretched-link rows don't navigate when clicking the pill
@@ -206,6 +221,7 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
 
 The prototype is demo-ready. Things to build next, in rough priority order:
 
+- [ ] **Wire Analysis page to real data** — replace `sample-data.ts` with a Supabase query; make `UtilitiesPage` an async server component that fetches and passes data down; add URL params for filter state persistence
 - [ ] **Vercel preview env vars** — set the 6 env vars for the Preview environment (currently production-only; needed for PR preview deploys)
 - [ ] **History-based anomaly checks** — variance vs baseline, consecutive estimated readings, materially-large reconciliations. Blocked until ≥3 bills per property are in the DB. (see DECISIONS.md Deferred section)
 - [ ] **Audit log page** — read-only table at `/audit` showing all `audit_log` rows (entity, action, user, timestamp)

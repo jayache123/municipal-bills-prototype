@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-05-22 — Analysis page: utility spend/usage analytics mockup
+
+### New feature
+- **`src/lib/categories.ts`** (new) — shared category metadata module; exports `UtilityCategory` type, `CATEGORY_ORDER` (8 categories in display order), `CATEGORY_LABELS`, `CATEGORY_SHORT_LABELS`, `CATEGORY_BADGE_CLASSES`, `CATEGORY_CHART_COLORS` (hex), `CATEGORY_VAT_RATE` (rates=0, others=0.15), `USAGE_CATEGORIES`, `VAT_LABEL`, `VAT_CHART_COLOR`. Designed to be shared with bill detail page when backend is wired.
+- **`src/app/utilities/sample-data.ts`** (new) — fabricated analytics data: 12 months (Apr 2025–Mar 2026), 4 properties (19 Atholl, Rockaways, 3B Vredefort, Twin Towers). Includes a water-leak spike (19 Atholl Nov 2025: 95 kL, R4,350) and estimated electricity readings (Atholl Aug+Sep 2025, Vredefort Feb 2026) to exercise anomaly display.
+- **`src/app/utilities/date-filter.tsx`** (new) — multi-select date dropdown; months grouped by year with year-level select-all checkbox; 3-col month grid; outside-click close; dark trigger button when filtering active.
+- **`src/app/utilities/category-filter.tsx`** (new) — multi-select category dropdown; each row shows hex colour swatch + label; same outside-click pattern; "Select all" / "Clear" header actions.
+- **`src/app/utilities/utilities-view.tsx`** (new, ~600 lines) — full client-rendered analytics view:
+  - Sticky floating filter bar (date, property, category) with reset button; `sticky top-0 z-40 backdrop-blur-sm`
+  - Stat cards: Total Spend, Avg/Month, Highest Category, Bills in View
+  - Spend over time: Recharts stacked `BarChart` — one bar per month, one segment per category + VAT segment
+  - Usage over time: three `LineChart` panels (electricity kWh, water kL, sewerage kL); estimated readings render as hollow circles via custom dot renderer
+  - Monthly breakdown matrix: `<table>` with month rows × category columns + VAT column + totals row/col
+  - Spend by category: `PieChart` donut
+  - Property comparison: horizontal `BarChart` — always shows all 4 properties; highlights selected
+  - `ChartArea` component: `ResizeObserver` measures container width and passes explicit `width`/`height` numbers to Recharts — avoids `width(-1)` console warnings from `ResponsiveContainer`
+- **`src/app/utilities/page.tsx`** (new) — thin route wrapper for `UtilitiesView`
+- **`src/components/sidebar.tsx`** — added "Analysis" nav item at `/utilities` between Properties and Upload Bill
+- **`src/components/top-bar.tsx`** — added `utilities: "Analysis"` to breadcrumb `SEGMENT_LABELS`
+- **`package.json`** — added `recharts` dependency
+
+---
+
 ## 2026-05-13 — Fix Period column on property detail bills table
 
 ### Fix

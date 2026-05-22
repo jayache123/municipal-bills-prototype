@@ -21,6 +21,11 @@ const NAV_ITEMS = [
     exact: false,
   },
   {
+    label: "Analysis",
+    href: "/utilities",
+    exact: false,
+  },
+  {
     label: "Upload Bill",
     href: "/upload",
     exact: false,

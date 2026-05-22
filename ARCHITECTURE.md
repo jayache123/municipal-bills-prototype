@@ -47,6 +47,7 @@ A bird's-eye view of how the system fits together. This is a placeholder — fle
 - `/bills/:id` — bill detail review panel: status bar + Approve action; four sections: Bill Information, Financial Summary (category-level amounts + VAT + total), Bill Summary (AI reviewer bullets + field errors), Detailed Breakdown (per-line-item table with category badge, item label, month, amount, days, reading type, units used, start/end dates, notes)
 - `/properties` — server-rendered properties list with status, address, complex/unit, account, municipality columns (Step 9)
 - `/properties/:id` — property detail: info grid + bills history table filtered to that property (Step 9)
+- `/utilities` (sidebar label: "Analysis") — client-rendered analytics view: stat cards, spend stacked bar, usage line charts, monthly breakdown matrix, spend donut, property comparison bar. Currently uses sample data (`src/app/utilities/sample-data.ts`); to be wired to Supabase. Recharts with custom `ChartArea` (ResizeObserver, no ResponsiveContainer). Shared category metadata in `src/lib/categories.ts`.
 
 ### API routes (Next.js, in `src/app/api/`)
 - Accept uploads, trigger extractions, serve data to the frontend

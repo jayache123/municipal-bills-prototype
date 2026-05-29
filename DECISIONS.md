@@ -6,6 +6,110 @@ A chronological log of decisions made on this prototype. Each entry captures the
 
 ---
 
+## Extraction pipeline: markitdown research + hybrid flow concept
+
+### markitdown as a PDF pre-processor
+**Date:** 2026-05-29
+**Status:** Research complete — implementation deferred
+
+#### What was tested
+
+Installed `markitdown[all]` v0.0.2 (Microsoft, via pipx, Python 3.14) and ran a controlled comparison between two extraction flows on three real bills:
+
+| Bill | Complexity |
+|---|---|
+| 19 Atholl Road — Feb 2026 | Single property, full utility suite (rates, elec, water, refuse, sewerage, improvement district, sundry) |
+| Rockaways — Jan 2026 | Multi-unit (3 units on one bill) |
+| 3B Vredefort Unit 24 — Aug 2025 | Electricity tiers + reversal of estimated reading |
+
+**Flow A** (current production): PDF → Claude API directly (document type, base64-encoded)
+**Flow B** (markitdown): PDF → `markitdown` CLI → plain text → Claude API (text only)
+
+Both flows used model `claude-sonnet-4-6` with the same structured extraction prompt. Results measured with `scripts/test-markitdown-comparison.ts`.
+
+#### Token and cost results
+
+| Bill | Flow A input tokens | Flow B input tokens | Reduction | Flow A cost | Flow B cost | Saving |
+|---|---|---|---|---|---|---|
+| 19 Atholl (3 pages) | 6,657 | 1,943 | 71% | $0.0413 | $0.0234 | $0.0179 |
+| Rockaways (3 pages) | 6,450 | 1,730 | 73% | $0.0379 | $0.0257 | $0.0122 |
+| Vredefort (2 pages) | 4,748 | 1,600 | 66% | $0.0290 | $0.0201 | $0.0088 |
+
+**Why Flow A uses so many more tokens:** Claude processes PDFs page-by-page as images (~1,700 tokens/page) regardless of whether the PDF contains embedded text. markitdown strips the image overhead entirely, leaving only the raw character stream.
+
+#### Speed results
+
+| Bill | Flow A time | Flow B time | Saving |
+|---|---|---|---|
+| 19 Atholl | 19,809ms | 12,867ms | 6,942ms |
+| Rockaways | 16,559ms | 13,861ms | 2,698ms |
+| Vredefort | 13,389ms | 11,017ms | 2,372ms |
+
+**At 1,000 bills/month:** Flow A ≈ $36/month, Flow B ≈ $23/month — saving ~$13/month.
+
+#### Quality finding: amounts are spatially disassociated in markitdown output
+
+Both flows produced valid JSON on all three bills. However, markitdown flattens PDF columns left-to-right across the whole page — so all line-item **descriptions** (left column) appear first, then all **amounts** (right column) appear in a block at the bottom. Example from Atholl bill:
+
+```
+# markitdown output — descriptions come first, amounts at end
+ELECTRICITY ... 570.000 kWh ...
+& (1) 570.0000 kWh @ R 2.9362
+& Service and wires charge
+WATER ...
+REFUSE ...
+...
+[then all amounts:]
+1673.63
+339.89
+2013.52
+105.75
+...
+```
+
+In the direct PDF read (Flow A), Claude sees description and amount on the same visual row — unambiguous. In Flow B, Claude must infer which amount belongs to which item by counting order. This is fragile for:
+- Multi-unit bills where amounts from different units interleave
+- Bills with reversal lines (negative amounts that could be mis-attributed)
+- Any bill where the number of line items differs from expectation
+
+**Both flows produced valid JSON in testing, but we have not yet verified whether the line-item-to-amount mappings are correct in Flow B outputs** — that accuracy check is the next step before any production use of Flow B.
+
+#### Decision: maintain Flow A as default; design hybrid routing for later
+
+Flow A remains the production default. The token/cost saving from Flow B is real but not large enough to justify accuracy risk in a high-stakes financial system at current bill volumes.
+
+#### Hybrid flow design (to build when ready)
+
+The proposed architecture routes each bill to Flow A or Flow B based on observable signals:
+
+```
+Incoming PDF
+    │
+    ├─ markitdown pre-pass
+    │       ├─ output empty/minimal → SCANNED PDF → Force Flow A
+    │       └─ output has content   → DIGITAL PDF → continue
+    │
+    ├─ Check billing_accounts for prior approved bills from same account
+    │       ├─ No prior bills (new account/format) → Force Flow A
+    │       └─ ≥1 prior auto-approved bill         → Candidate for Flow B
+    │
+    └─ Run Flow B
+            ├─ Auto-approved (high confidence, no errors) → Done ✅
+            └─ Not auto-approved (any failure)            → Re-run Flow A → Human review
+```
+
+**Key rule: auto-escalation.** If Flow B produces any validation failure, field error, or confidence below threshold, the system automatically re-runs with Flow A before presenting to the human reviewer. This means no accuracy regression — the cheap path is only used when signals are green, and always falls back on doubt.
+
+**Implementation notes:**
+- Pre-flight cost is negligible (markitdown is local, sub-second)
+- Account familiarity can be checked against `billing_accounts` table
+- `bills.extraction_model` field already exists to record which flow was used
+- Accuracy scoring step (compare Flow B output vs known-good values in DB) should be built before routing any live bill to Flow B
+
+**Script:** `scripts/test-markitdown-comparison.ts` — runs both flows side-by-side on any bill in `example_rates/`, reports tokens, time, cost, and JSON validity.
+
+---
+
 ## Tech stack
 
 ### Backend language: TypeScript

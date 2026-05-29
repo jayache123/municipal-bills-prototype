@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-05-29 — markitdown research: extraction flow comparison + hybrid routing design
+
+### Research
+- Installed `markitdown[all]` v0.0.2 (Microsoft) via pipx/Python 3.14 — converts PDFs and other file formats to plain text
+- Built `scripts/test-markitdown-comparison.ts` — runs Flow A (PDF direct) and Flow B (markitdown → text) on the same bills using the same Claude model and prompt, reports tokens, time, cost, and JSON validity side by side
+- Tested on 3 bills: 19 Atholl Feb 2026 (full suite), Rockaways Jan 2026 (multi-unit), 3B Vredefort Aug 2025 (tiers + reversal)
+
+### Key findings
+- Flow B uses 66–73% fewer input tokens (PDF pages count as ~1,700 image tokens each; markitdown removes that overhead)
+- Flow B is 2–7 seconds faster per bill
+- Flow B costs ~35% less ($23/month vs $36/month at 1,000 bills)
+- Both produced valid JSON on all 3 test bills
+- **Quality risk identified:** markitdown flattens PDF columns — all descriptions appear first, then all amounts in a block. Claude must infer amount-to-item mapping by order rather than by visual position. Fragile for multi-unit bills and reversal lines. Amount-mapping accuracy not yet verified against known DB values.
+
+### Decisions recorded
+- Flow A (direct PDF) remains production default — accuracy risk not justified at current volumes
+- Hybrid routing design added to DECISIONS.md and PROGRESS.md todo list: use markitdown pre-pass to detect scanned PDFs, route known-format digital bills to Flow B, auto-escalate to Flow A on any validation failure
+
+---
+
 ## 2026-05-22 — Responsive shell: mobile hamburger nav + UI/UX fixes
 
 ### UI — Responsive navigation shell

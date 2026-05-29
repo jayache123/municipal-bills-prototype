@@ -229,6 +229,13 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
 
 The prototype is demo-ready. Things to build next, in rough priority order:
 
+- [ ] **Hybrid extraction flow (markitdown pre-pass + smart routing)** — Research completed 2026-05-29; see DECISIONS.md for full findings and test data. Idea: run a cheap pre-flight check on every incoming PDF to decide which extraction path to use:
+  - **Flow B (markitdown → text → Claude):** use when PDF is confirmed digital text, bill format has been seen before (same municipality/account), and the previous bill for that account was auto-approved. ~35% cheaper, ~4s faster per bill.
+  - **Flow A (PDF → Claude direct):** use for scanned/image PDFs, first-time formats, unknown municipalities, or any bill type not seen before. Current default; always reliable.
+  - **Auto-escalation rule:** if a bill processed via Flow B does not reach `approved` status automatically (any validation failure, low confidence, or field error), automatically re-run extraction via Flow A before presenting to the human reviewer. This means no accuracy regression — the cheap path is only ever used when conditions are safe, and falls back to the reliable path on any doubt.
+  - **Pre-flight logic to build:** (1) try `markitdown` — if output is empty/minimal → scanned PDF → force Flow A; (2) check `billing_accounts` table for prior approved bills from same account → if ≥1 approved → candidate for Flow B; (3) check `bills.extraction_model` on prior bills to confirm they were auto-approved via normal path.
+  - **Script already created:** `scripts/test-markitdown-comparison.ts` — runs both flows on the same PDF and reports tokens, time, cost, and JSON validity side by side.
+
 - [ ] **Wire Analysis page to real data** — replace `sample-data.ts` with a Supabase query; make `UtilitiesPage` an async server component that fetches and passes data down; add URL params for filter state persistence
 - [ ] **Vercel preview env vars** — set the 6 env vars for the Preview environment (currently production-only; needed for PR preview deploys)
 - [ ] **History-based anomaly checks** — variance vs baseline, consecutive estimated readings, materially-large reconciliations. Blocked until ≥3 bills per property are in the DB. (see DECISIONS.md Deferred section)

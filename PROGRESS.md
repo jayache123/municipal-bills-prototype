@@ -229,20 +229,23 @@ A 7-step plan to take the working CLI extraction and turn it into a real upload-
 
 The prototype is demo-ready. Things to build next, in rough priority order:
 
-- [ ] **Hybrid extraction flow (markitdown pre-pass + smart routing)** — Research completed 2026-05-29; see DECISIONS.md for full findings and test data. Idea: run a cheap pre-flight check on every incoming PDF to decide which extraction path to use:
-  - **Flow B (markitdown → text → Claude):** use when PDF is confirmed digital text, bill format has been seen before (same municipality/account), and the previous bill for that account was auto-approved. ~35% cheaper, ~4s faster per bill.
-  - **Flow A (PDF → Claude direct):** use for scanned/image PDFs, first-time formats, unknown municipalities, or any bill type not seen before. Current default; always reliable.
-  - **Auto-escalation rule:** if a bill processed via Flow B does not reach `approved` status automatically (any validation failure, low confidence, or field error), automatically re-run extraction via Flow A before presenting to the human reviewer. This means no accuracy regression — the cheap path is only ever used when conditions are safe, and falls back to the reliable path on any doubt.
-  - **Pre-flight logic to build:** (1) try `markitdown` — if output is empty/minimal → scanned PDF → force Flow A; (2) check `billing_accounts` table for prior approved bills from same account → if ≥1 approved → candidate for Flow B; (3) check `bills.extraction_model` on prior bills to confirm they were auto-approved via normal path.
-  - **Script already created:** `scripts/test-markitdown-comparison.ts` — runs both flows on the same PDF and reports tokens, time, cost, and JSON validity side by side.
-
 - [ ] **Wire Analysis page to real data** — replace `sample-data.ts` with a Supabase query; make `UtilitiesPage` an async server component that fetches and passes data down; add URL params for filter state persistence
 - [ ] **Vercel preview env vars** — set the 6 env vars for the Preview environment (currently production-only; needed for PR preview deploys)
 - [ ] **History-based anomaly checks** — variance vs baseline, consecutive estimated readings, materially-large reconciliations. Blocked until ≥3 bills per property are in the DB. (see DECISIONS.md Deferred section)
 - [ ] **Audit log page** — read-only table at `/audit` showing all `audit_log` rows (entity, action, user, timestamp)
 - [ ] **Settings page** — read/update the `settings` table rows (model name, confidence threshold, etc.)
 - [ ] **Authentication** — replace the placeholder "JA" account button with real auth; fill in Supabase RLS policies
-- [ ] **Performance / scale** — prompt caching, Haiku→Sonnet model tiering, async queue via Vercel Queues (see DECISIONS.md Deferred section)
+- [ ] **Extraction efficiency — grouped workstream** (all items below are related; tackle together)
+  - **Hybrid extraction routing (markitdown pre-pass)** — Research completed 2026-05-29; see DECISIONS.md for full test data and results. Run a cheap pre-flight check on every PDF to decide which path to use:
+    - Flow B (markitdown → text → Claude): use when PDF is confirmed digital, bill format has been seen before (same account), and the previous bill for that account was auto-approved. ~35% cheaper, ~4s faster per bill.
+    - Flow A (PDF → Claude direct): use for scanned/image PDFs, first-time formats, or anything new. Current default; always reliable.
+    - **Auto-escalation rule:** if a bill processed via Flow B does not reach `approved` status automatically (any failure, low confidence, or field error), automatically re-run with Flow A before presenting to the human reviewer — no accuracy regression possible.
+    - Pre-flight logic: (1) try markitdown — empty output = scanned PDF → force Flow A; (2) check `billing_accounts` for prior approved bills from same account → if none → force Flow A; (3) run Flow B → if not auto-approved → re-run Flow A.
+    - Script: `scripts/test-markitdown-comparison.ts` — runs both flows on any PDF and reports tokens, time, cost, JSON validity side by side.
+  - **Prompt caching** — Claude supports cache-control headers on system prompts; the extraction prompt is long and repeated on every bill. Caching it reduces input token cost by ~90% on the cached portion after the first call per session.
+  - **Batch API** — Anthropic's Batch API processes bills asynchronously at 50% cost. Viable for non-urgent bulk ingestion (e.g. end-of-month batch of all new bills). Not suitable for the live upload flow where the user waits for a result.
+  - **Model tiering** — use Haiku for a quick pre-screen pass (is this a valid bill? what municipality?) before committing Sonnet tokens to full extraction. Could save ~60% on bills that fail pre-screen quickly.
+  - **Async queue** — move extraction off the HTTP request/response cycle via Vercel Queues; user uploads PDF and gets a job ID immediately; extraction runs in background; webhook or polling shows result when ready. Needed for batch ingestion at scale.
 - [ ] **Scanned PDF test** — manufacture a phone-photo PDF, run extraction, verify the `scanned` source path
 - [ ] **Regression runner** — script that runs extraction on all test PDFs and reports pass/fail (useful when the prompt is changed)
 - [ ] **Credential rotation** — after the demo, rotate any credentials that appeared in chat during early setup

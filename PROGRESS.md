@@ -2,8 +2,8 @@
 
 Where we are right now and what's next. Updated on every commit.
 
-**Last updated:** 2026-05-22
-**Last commit:** feat: responsive shell — mobile hamburger nav + UI/UX fixes across all breakpoints
+**Last updated:** 2026-06-07
+**Last commit:** docs: add CLIENT_FEEDBACK.md — Daleglen demo notes (Xavier Badenhorst, 4 Jun 2026)
 **Live URL:** https://municipal-bills-prototype.vercel.app
 **Branch:** `main`
 

@@ -26,6 +26,10 @@ Before any commit:
 
 These updates are part of the commit itself — same commit, not a follow-up. The goal: at any commit, all docs reflect reality.
 
+## Client feedback log
+
+Client and stakeholder feedback about the tool is recorded in [`CLIENT_FEEDBACK.md`](CLIENT_FEEDBACK.md), grouped by client, then by person and meeting. It is reference context only and does NOT translate directly into the roadmap or plan. Consult it during planning; record actual decisions in [`DECISIONS.md`](DECISIONS.md) and [`PROGRESS.md`](PROGRESS.md), not in the feedback log. This file is not part of the session-start required reading; open it when planning, not on every session.
+
 ## What this project is
 
 A working prototype of a system that automates the processing of municipal property bills for a property management company. The client currently receives thousands of municipal PDF bills each month, prints them, and manually captures each line item. There is no current system for flagging unexpected usage spikes, missing bills, or extraction errors.

@@ -114,6 +114,7 @@ All tunable thresholds live in the Supabase `settings` table, editable later via
 ├── public/              Static assets
 ├── CLAUDE.md            Project rules and context for Claude Code
 ├── README.md            This file
+├── CLIENT_FEEDBACK.md   Client/stakeholder feedback log (reference, not a plan)
 └── .env.local.example   Env var template
 ```
 
@@ -133,6 +134,10 @@ If you (or a future Claude Code session) need to pick this work back up:
 - **Granular line items.** Every visible sub-charge on a bill is stored as its own row in `bill_line_items`, with full metadata (period, rate, usage, meter readings, VAT, tariff tier). This lets the system mathematically verify each line and reconstruct the original bill exactly. Simpler views can always be derived; granularity cannot be recovered later.
 - **Multi-unit bills.** One municipal account can cover multiple property units (e.g. multiple units on a single Erf). The data model handles this via a `billing_accounts` table that owns both bills and properties.
 - **No hardcoded municipality format.** The extraction prompt is designed to handle any South African municipal bill, not just City of Cape Town. Bill layouts vary; the prompt must generalise.
+
+## Client feedback log
+
+Client and stakeholder feedback about the tool is recorded in [`CLIENT_FEEDBACK.md`](CLIENT_FEEDBACK.md), grouped by client, then by person and meeting. It is reference context only and does not translate directly into the roadmap or build plan. Consult it during planning; record actual decisions in [`DECISIONS.md`](DECISIONS.md) and [`PROGRESS.md`](PROGRESS.md).
 
 ## License
 

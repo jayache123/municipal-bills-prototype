@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-06-07 - Add client feedback log
+
+### Docs
+- Added `CLIENT_FEEDBACK.md` - a running record of client/stakeholder feedback, grouped by client, then by person and meeting. Reference context only; does not translate directly into the roadmap or plan.
+- First entry: Daleglen / Xavier Badenhorst, 4 Jun 2026 demo of the Municipal Bills tool. Captures 13 itemised feedback points (A-M) plus parked adjacent opportunities, sourced from the Granola meeting note.
+- Added a standalone "Client feedback log" section to `CLAUDE.md` (explicitly not part of session-start required reading) and to `README.md`, plus a line for the file in the README project-structure map.
+
+---
+
 ## 2026-05-29 — markitdown research: extraction flow comparison + hybrid routing design
 
 ### Research
